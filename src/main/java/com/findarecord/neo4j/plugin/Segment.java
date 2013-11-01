@@ -1,19 +1,17 @@
 package com.findarecord.neo4j.plugin;
 
 /**
- * Created with IntelliJ IDEA.
- * User: john
- * Date: 11/1/13
- * Time: 2:02 PM
- * To change this template use File | Settings | File Templates.
+ * Represents a segment node in the graph.
  */
 public class Segment {
   private char x;
   private char y;
+  private String id;
 
   public Segment(char x, char y) {
     this.x = x;
     this.y = y;
+    this.id = "";
   }
 
   public char getX() {
@@ -35,5 +33,9 @@ public class Segment {
   @Override
   public String toString() {
       return x+","+y;
+  }
+
+  public String getId() {
+    return id;
   }
 }

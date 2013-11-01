@@ -1,15 +1,14 @@
 package com.findarecord.neo4j.plugin;
 
+import org.apache.commons.lang.StringUtils;
+
 import java.util.ArrayList;
 
-/**
- * Created with IntelliJ IDEA.
- * User: john
- * Date: 11/1/13
- * Time: 2:01 PM
- * To change this template use File | Settings | File Templates.
- */
+
 public class Box {
+
+  private int precision = 3;
+
   private String id;
   private ArrayList<Segment> segments;
   private String x;
@@ -46,14 +45,14 @@ public class Box {
     x = prepString(x);
 
     //pad y
-    y = prepString(x);
+    y = prepString(y);
 
     //loop through and create segments
     for (int i = 0; i < x.length(); i++){
       newSegments.add(new Segment(x.charAt(i),y.charAt(i)));
     }
 
-    return newSegments;  //To change body of created methods use File | Settings | File Templates.
+    return newSegments;
   }
 
   private String prepString(String str) {
@@ -63,13 +62,26 @@ public class Box {
     String[] parts = str.split("\\.");
 
     //if no period, pad to 3 places with 0 and add up to significant chars
-    part1 = String.format("%03s",parts[0]);
+    part1 = StringUtils.leftPad(parts[0], 3, '0');
     if(parts.length == 2) {
-      part2 = String.format("-%05s",parts[1]);
+      part2 = StringUtils.substring(parts[1], 0, precision);
+      part2 = StringUtils.rightPad(part2, precision, '0');
+    } else {
+      part2 = StringUtils.rightPad("", precision, '0');
     }
 
     return part1+part2;
   }
 
+  @Override
+  public String toString() {
+    String ret = "";
+
+    for(Segment s : this.segments) {
+        ret += s.toString()+"   ";
+    }
+
+    return ret;
+  }
 
 }
