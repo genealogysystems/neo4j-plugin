@@ -4,3 +4,7 @@
 *.jar
 *.war
 *.ear
+
+.idea/
+neo4j-plugin.iml
+target/
