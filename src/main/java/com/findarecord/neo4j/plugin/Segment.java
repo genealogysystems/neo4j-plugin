@@ -11,7 +11,7 @@ public class Segment {
   private char x;
   private char y;
 
-  public Segment(char c, char c1) {
+  public Segment(char x, char y) {
     this.x = x;
     this.y = y;
   }
