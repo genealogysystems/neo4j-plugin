@@ -5,10 +5,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.server.plugins.*;
 import org.neo4j.tooling.GlobalGraphOperations;
 
-/**
- * Hello world!
- *
- */
+@Description( "Find-A-Record Collections Index" )
 public class CollectionIndex extends ServerPlugin
 {
   @Name( "get_all_nodes" )
