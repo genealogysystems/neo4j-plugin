@@ -25,14 +25,16 @@ public class CollectionIndexPlugin extends ServerPlugin {
   @Name( "index" )
   @Description( "Index a Collection" )
   @PluginTarget( GraphDatabaseService.class )
-  public Iterable<String> index( @Source GraphDatabaseService graphDb ) {
+  public Iterable<String> index( @Source GraphDatabaseService graphDb,
+                                 @Description( "The geojson string" )
+                                 @Parameter( name = "geojson" ) String geojson) {
     ArrayList<String> result = new ArrayList<String>();
 
     CollectionIndex idx = new CollectionIndex(graphDb);
 
-    String res = idx.indexPolygon();
+    String res = idx.indexPolygon(geojson);
 
-    result.add(res);
+    result.add(res+"");
 
     return result;
   }

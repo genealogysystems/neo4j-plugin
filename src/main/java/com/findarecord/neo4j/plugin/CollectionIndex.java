@@ -1,11 +1,13 @@
 package com.findarecord.neo4j.plugin;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
+import org.geotools.geojson.feature.FeatureJSON;
+import org.geotools.geojson.geom.GeometryJSON;
+import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.UniqueFactory;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -16,7 +18,7 @@ public class CollectionIndex {
    * The amount of precision after the decimal point
    * in both latitude and longitude
    */
-  private int precision = 3;
+  private int precision = 2;
 
 
   private GraphDatabaseService graphDb;
@@ -37,18 +39,7 @@ public class CollectionIndex {
           created.setProperty( "id", properties.get( "id" ) );
         }
       };
-      /*
-      relationshipFactory = new UniqueFactory.UniqueRelationshipFactory( graphDb, "relIdx" )
-      {
-        @Override
-        protected Relationship create(Map<String, Object> _) {
 
-          created.
-          //final Relationship relationship = startNode.createRelationshipTo(endNode, DynamicRelationshipType.withName(type));
-          //return setProperties(relationship, properties);
-        }
-      };
-      */
       tx.success();
     }
   }
@@ -63,25 +54,40 @@ public class CollectionIndex {
     return null;
   }
 
-  public String indexPolygon() {
+  public String indexPolygon(String geojson) {
 
+    boolean noErrors = true;
     //validate/initialize polygon
+    int decimals = 15;
+    GeometryJSON gjson = new GeometryJSON(decimals);
+    Reader reader = new StringReader(geojson);
+    try {
+      gjson.readGeometryCollection(reader);
+    } catch (IOException e) {
+      return e.toString();
+    }
+
 
     //turn polygon into boxes
     ArrayList<Box> boxes = convertPolygonToBoxes();
 
+    //insert boxes into graph
     try(Transaction tx = graphDb.beginTx()) {
-      //insert boxes into graph
       for(Box box : boxes) {
-        insertBox(box);
+        if(!insertBox(box)) {
+          noErrors = false;
+        }
       }
       tx.success();
     }
 
-    return boxes.get(0).toString();
+    return "";
   }
 
-  private void insertBox(Box box) {
+  /**
+   * Returns true if box was successfully inserted
+   */
+  private boolean insertBox(Box box) {
 
     //get root node
     Node from = graphDb.getNodeById(0);
@@ -90,18 +96,36 @@ public class CollectionIndex {
     for(Segment seg : box.getSegments()) {
       from = insertSegment(seg, from);
     }
+
+    return true;
   }
 
-  private Node insertSegment(Segment seg, Node from) {
+  private Node insertSegment(Segment seg, Node fromNode) {
     //TODO consider moving transaction to this level to allow for more granular concurrency
 
-
     //insert/create next segment
-    //Node node = nodeFactory.getOrCreate( "id", seg.getId() );
+    Node toNode = nodeFactory.getOrCreate( "id", seg.getId() );
+    UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", seg.getId());
+    if(rel.wasCreated()) {
+      rel.entity().setProperty("x", seg.getXInt());
+      rel.entity().setProperty("y", seg.getYInt());
+    }
 
-    return null;  //To change body of created methods use File | Settings | File Templates.
+    return toNode;  //To change body of created methods use File | Settings | File Templates.
   }
 
+  private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue) {
+
+    UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, "relIdx") {
+      @Override
+      protected Relationship create(Map<String, Object> properties) {
+        Relationship r =  start.createRelationshipTo(end, DynamicRelationshipType.withName("idxContain"));
+        return r;
+      }
+    };
+
+    return factory.getOrCreateWithOutcome(indexableKey, indexableValue);
+  }
 
   private Iterable<Box> convertDistanceToBoxes() {
 
@@ -111,7 +135,7 @@ public class CollectionIndex {
   private ArrayList<Box> convertPolygonToBoxes() {
     ArrayList<Box> boxes = new ArrayList<Box>();
 
-    boxes.add(new Box("123.45","90.123"));
+    boxes.add(new Box("123.45","90.123", precision));
 
     return boxes;
   }
