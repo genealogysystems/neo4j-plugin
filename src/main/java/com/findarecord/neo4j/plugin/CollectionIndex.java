@@ -1,5 +1,6 @@
 package com.findarecord.neo4j.plugin;
 
+import com.vividsolutions.jts.geom.Geometry;
 import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.neo4j.graphdb.*;
@@ -62,7 +63,9 @@ public class CollectionIndex {
     GeometryJSON gjson = new GeometryJSON(decimals);
     Reader reader = new StringReader(geojson);
     try {
-      gjson.readGeometryCollection(reader);
+      Geometry geometry = gjson.read(reader);
+      //geometry.
+
     } catch (IOException e) {
       return e.toString();
     }
