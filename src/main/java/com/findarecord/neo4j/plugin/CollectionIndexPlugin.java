@@ -1,7 +1,6 @@
 package com.findarecord.neo4j.plugin;
 
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Transaction;
 import org.neo4j.server.plugins.*;
 
 import java.util.ArrayList;
@@ -15,6 +14,11 @@ public class CollectionIndexPlugin extends ServerPlugin {
   public Iterable<String> query( @Source GraphDatabaseService graphDb ) {
     ArrayList<String> result = new ArrayList<>();
 
+    //instantiate collections index
+    CollectionIndex idx = new CollectionIndex(graphDb);
+
+    result.add(idx.query());
+
     return result;
   }
 
@@ -25,7 +29,7 @@ public class CollectionIndexPlugin extends ServerPlugin {
                                  @Description( "The geojson string" )
                                  @Parameter( name = "geojson" ) String geojson) {
     //create result string
-    ArrayList<String> result = new ArrayList<String>();
+    ArrayList<String> result = new ArrayList<>();
 
     //instantiate collections index
     CollectionIndex idx = new CollectionIndex(graphDb);

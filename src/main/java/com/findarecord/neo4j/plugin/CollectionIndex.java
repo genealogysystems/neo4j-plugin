@@ -4,18 +4,12 @@ import com.vividsolutions.jts.geom.*;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.UniqueFactory;
-import org.neo4j.graphdb.traversal.Evaluation;
-import org.neo4j.graphdb.traversal.Evaluator;
 import org.neo4j.graphdb.traversal.TraversalDescription;
-import org.neo4j.graphdb.traversal.Uniqueness;
-import org.neo4j.kernel.Traversal;
+import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 
-import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -51,23 +45,8 @@ public class CollectionIndex {
   public String query() {
 
     Node start = graphDb.getNodeById(0);
-    TraversalDescription T = Traversal
-        .description()
-        .uniqueness( Uniqueness.RELATIONSHIP_GLOBAL )
-        .breadthFirst()
-        .relationships( DynamicRelationshipType.withName("idxCon"), Direction.OUTGOING )
-        .evaluator(new Evaluator() {
-          @Override
-          public Evaluation evaluate(Path path) {
-            /*
-            String currentColor = (String) path.endNode().getProperty( "color" );
-            boolean endOfTheLine = path.length()+1 >= colors.length;
-            return currentColor.equals( colors[path.length()] ) ?
-                Evaluation.of( endOfTheLine, !endOfTheLine ) : Evaluation.EXCLUDE_AND_PRUNE;
-            */
-            return Evaluation.EXCLUDE_AND_PRUNE;
-          }
-        });
+    TraversalDescription traversal = new TraversalDescriptionImpl();
+    traversal.breadthFirst();
 
     return "";
   }
@@ -94,18 +73,13 @@ public class CollectionIndex {
 
     Geometry geometry = geoJSONtoGeometry(geoString);
 
-    String ret = indexGeometry(geometry);
-
-    return ret;
+    return indexGeometry(geometry);
   }
 
   private String indexGeometry(Geometry geometry) {
-    String ret = "";
 
     //index first level
-    ret = indexFirstLevel(geometry);
-
-    return ret;
+    return indexFirstLevel(geometry);
   }
 
   private String indexFirstLevel(Geometry geometryToIndex) {
@@ -195,7 +169,6 @@ public class CollectionIndex {
   }
 
   private String insertBox(Box box) {
-    String ret;
 
     try ( Transaction tx = graphDb.beginTx() ) {
       //get root node
@@ -235,12 +208,10 @@ public class CollectionIndex {
       return ids.toString();
     }
 
-
-    //return "";
   }
 
   private Geometry geoJSONtoGeometry(String geoString) {
-    Geometry geometry = null;
+    Geometry geometry;
     GeometryJSON gJSON = new GeometryJSON(15); //15 precision
     Reader reader = new StringReader(geoString);
     try {
@@ -262,8 +233,7 @@ public class CollectionIndex {
     UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, indexName) {
       @Override
       protected Relationship create(Map<String, Object> properties) {
-        Relationship r =  start.createRelationshipTo(end, DynamicRelationshipType.withName(relName));
-        return r;
+        return start.createRelationshipTo(end, DynamicRelationshipType.withName(relName));
       }
     };
 

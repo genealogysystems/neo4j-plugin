@@ -2,7 +2,6 @@ package com.findarecord.neo4j.plugin;
 
 import com.vividsolutions.jts.geom.*;
 import org.apache.commons.lang.StringUtils;
-import org.neo4j.graphdb.Node;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
