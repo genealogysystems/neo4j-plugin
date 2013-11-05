@@ -51,8 +51,6 @@ public class CollectionIndex {
 
   private String indexGeometry(Geometry geometry) {
     String ret = "";
-    //start transaction
-    //TODO
 
     //index first level
     ret = indexFirstLevel(geometry);
