@@ -9,6 +9,8 @@ import java.awt.geom.Rectangle2D;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -16,12 +18,26 @@ import java.util.Map;
 public class CollectionIndex {
 
   private double depth = 0.001;
+  private int numDecimals = 3;
   private int width = 10;
   private GraphDatabaseService graphDb;
-
+  private UniqueFactory<Node> nodeFactory;
 
   public CollectionIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
+    try ( Transaction tx = graphDb.beginTx() )
+    {
+      nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, "nodeIdx" )
+      {
+        @Override
+        protected void initialize( Node created, Map<String, Object> properties )
+        {
+          created.setProperty( "id", properties.get( "id" ) );
+        }
+      };
+
+      tx.success();
+    }
   }
 
   public String indexGeoJSON(String geoString) {
@@ -55,13 +71,13 @@ public class CollectionIndex {
     for(Box box : boxes) {
       //if geometryToIndex contains this boxes, insert and continue
       if(geometryToIndex.contains(box.getPolygon())) {
-        ret += insertBox(box)+" || ";
+        ret += insertBox(box);
         continue;
       }
 
       //if geometryToIndex intersects this boxes, recurse
       if(geometryToIndex.intersects(box.getPolygon())) {
-        ret += "intersect found:"+box.toString()+" || ";
+        //ret += "intersect found:"+box.toString()+" || ";
         ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), 1);
       }
     }
@@ -74,22 +90,22 @@ public class CollectionIndex {
     //get boxes for this level
     ArrayList<Box> boxes = getNLevelBoxes(lat, lon, precision);
 
-    ret += "level "+lat+" "+lon+" "+precision+" - boxes="+boxes.size()+" || ";
+    //ret += "level "+lat+" "+lon+" "+precision+" - boxes="+boxes.size()+" || ";
 
     //loop through boxes
     for(Box box : boxes) {
       //if geometryToIndex contains this boxes, insert and continue
       if(geometryToIndex.contains(box.getPolygon())) {
-        ret += insertBox(box)+" || ";
+        ret += insertBox(box);
         continue;
       }
 
       //if geometryToIndex intersects this boxes, recurse or stop
       if(geometryToIndex.intersects(box.getPolygon())) {
-        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
         if(precision == depth) {
-          ret += insertBox(box)+" || ";
+          ret += insertBox(box);
         } else {
           ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), precision/width);
         }
@@ -131,8 +147,37 @@ public class CollectionIndex {
   }
 
   private String insertBox(Box box) {
-    //TODO do this
-    return "Inserting "+box.toString();
+    String ret;
+
+    try ( Transaction tx = graphDb.beginTx() ) {
+      //get root node
+      Node fromNode = graphDb.getNodeById(0);
+
+      ArrayList<String> ids = box.getIds(numDecimals);
+
+      for(String id: ids) {
+        //create new node
+        Node toNode = nodeFactory.getOrCreate( "id", id );
+
+        //create relationship
+        UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id);
+        if(rel.wasCreated()) {
+          rel.entity().setProperty("minLat", box.getLat());
+          rel.entity().setProperty("maxLat", box.getLat()+box.getPrecision());
+
+          rel.entity().setProperty("minLon", box.getLon()-box.getPrecision());
+          rel.entity().setProperty("maxLon", box.getLon());
+        }
+
+        //point fromNode to toNode
+        fromNode = toNode;
+      }
+      tx.success();
+      return ids.toString();
+    }
+
+
+    //return "";
   }
 
   private Geometry geoJSONtoGeometry(String geoString) {
@@ -147,6 +192,19 @@ public class CollectionIndex {
     }
 
     return geometry;
+  }
+
+  private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue) {
+
+    UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, "relIdx") {
+      @Override
+      protected Relationship create(Map<String, Object> properties) {
+        Relationship r =  start.createRelationshipTo(end, DynamicRelationshipType.withName("idxContain"));
+        return r;
+      }
+    };
+
+    return factory.getOrCreateWithOutcome(indexableKey, indexableValue);
   }
 
 }
