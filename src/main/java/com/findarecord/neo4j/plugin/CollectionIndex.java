@@ -15,7 +15,8 @@ import java.util.Map;
 
 public class CollectionIndex {
 
-
+  private double depth = 0.001;
+  private int width = 10;
   private GraphDatabaseService graphDb;
 
 
@@ -29,13 +30,109 @@ public class CollectionIndex {
 
     String ret = indexGeometry(geometry);
 
-    return "";
+    return ret;
   }
 
   private String indexGeometry(Geometry geometry) {
+    String ret = "";
+    //start transaction
+    //TODO
 
+    //index first level
+    ret = indexFirstLevel(geometry);
 
-    return null;
+    return ret;
+  }
+
+  private String indexFirstLevel(Geometry geometryToIndex) {
+
+    String ret = "";
+
+    //get boxes for this level
+    ArrayList<Box> boxes = getFirstLevelBoxes();
+
+    //loop through boxes
+    for(Box box : boxes) {
+      //if geometryToIndex contains this boxes, insert and continue
+      if(geometryToIndex.contains(box.getPolygon())) {
+        ret += insertBox(box)+" || ";
+        continue;
+      }
+
+      //if geometryToIndex intersects this boxes, recurse
+      if(geometryToIndex.intersects(box.getPolygon())) {
+        ret += "intersect found:"+box.toString()+" || ";
+        ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), 1);
+      }
+    }
+    return ret;
+  }
+
+  private String indexNLevel(Geometry geometryToIndex, double lat, double lon, double precision) {
+    String ret = "";
+
+    //get boxes for this level
+    ArrayList<Box> boxes = getNLevelBoxes(lat, lon, precision);
+
+    ret += "level "+lat+" "+lon+" "+precision+" - boxes="+boxes.size()+" || ";
+
+    //loop through boxes
+    for(Box box : boxes) {
+      //if geometryToIndex contains this boxes, insert and continue
+      if(geometryToIndex.contains(box.getPolygon())) {
+        ret += insertBox(box)+" || ";
+        continue;
+      }
+
+      //if geometryToIndex intersects this boxes, recurse or stop
+      if(geometryToIndex.intersects(box.getPolygon())) {
+        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        //if we are at our max depth, insert rather than recurse
+        if(precision == depth) {
+          ret += insertBox(box)+" || ";
+        } else {
+          ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), precision/width);
+        }
+      }
+    }
+    return ret;
+  }
+
+  private ArrayList<Box> getFirstLevelBoxes() {
+
+    ArrayList<Box> boxes = new ArrayList<>();
+    int precision = 10;
+    int fromLat = 90;
+    int toLat = -90;
+    int fromLon = -180;
+    int toLon = 180;
+
+    for(int lon=fromLon;lon<toLon; lon = lon+precision) {
+      for(int lat=fromLat;lat>toLat; lat = lat-precision) {
+        boxes.add(new Box(lat,lon, precision));
+      }
+    }
+
+    return boxes;
+  }
+
+  private ArrayList<Box> getNLevelBoxes(double fromLat, double fromLon, double precision) {
+    ArrayList<Box> boxes = new ArrayList<>();
+    double toLat = fromLat-(precision*width);
+    double toLon = fromLon+(precision*width);
+
+    for(double lon=fromLon;lon<toLon; lon = lon+precision) {
+      for(double lat=fromLat;lat>toLat; lat = lat-precision) {
+        boxes.add(new Box(lat,lon, precision));
+      }
+    }
+
+    return boxes;
+  }
+
+  private String insertBox(Box box) {
+    //TODO do this
+    return "Inserting "+box.toString();
   }
 
   private Geometry geoJSONtoGeometry(String geoString) {
