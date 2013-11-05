@@ -13,12 +13,8 @@ public class CollectionIndexPlugin extends ServerPlugin {
   @Description( "Perform a Collection query" )
   @PluginTarget( GraphDatabaseService.class )
   public Iterable<String> query( @Source GraphDatabaseService graphDb ) {
-    ArrayList<String> result = new ArrayList<String>();
+    ArrayList<String> result = new ArrayList<>();
 
-    try(Transaction tx = graphDb.beginTx()) {
-      result.add(graphDb.getNodeById(0).getId() + "");
-      tx.success();
-    }
     return result;
   }
 
@@ -28,14 +24,19 @@ public class CollectionIndexPlugin extends ServerPlugin {
   public Iterable<String> index( @Source GraphDatabaseService graphDb,
                                  @Description( "The geojson string" )
                                  @Parameter( name = "geojson" ) String geojson) {
+    //create result string
     ArrayList<String> result = new ArrayList<String>();
 
+    //instantiate collections index
     CollectionIndex idx = new CollectionIndex(graphDb);
 
-    String res = idx.indexPolygon(geojson);
+    //index the passed in geojson
+    String res = idx.indexGeoJSON(geojson);
 
+    //spit out result
     result.add(res+"");
 
+    //return
     return result;
   }
 
