@@ -30,6 +30,9 @@ public class CollectionIndexPlugin extends ServerPlugin {
     //instantiate collections index
     CollectionIndex idx = new CollectionIndex(graphDb);
 
+    //index collection
+    result.add(idx.indexCollection("col:testing"));
+
     //index the passed in geojson
     String res = idx.indexGeoJSON(geojson);
 

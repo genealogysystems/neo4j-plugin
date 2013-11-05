@@ -4,6 +4,11 @@ import com.vividsolutions.jts.geom.*;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.UniqueFactory;
+import org.neo4j.graphdb.traversal.Evaluation;
+import org.neo4j.graphdb.traversal.Evaluator;
+import org.neo4j.graphdb.traversal.TraversalDescription;
+import org.neo4j.graphdb.traversal.Uniqueness;
+import org.neo4j.kernel.Traversal;
 
 import java.awt.geom.Rectangle2D;
 import java.io.IOException;
@@ -23,10 +28,13 @@ public class CollectionIndex {
   private GraphDatabaseService graphDb;
   private UniqueFactory<Node> nodeFactory;
 
+  private Node collectionNode;
+
+  private String collectionIndexName = "colIdx";
+
   public CollectionIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
-    try ( Transaction tx = graphDb.beginTx() )
-    {
+    try ( Transaction tx = graphDb.beginTx() ) {
       nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, "nodeIdx" )
       {
         @Override
@@ -38,6 +46,48 @@ public class CollectionIndex {
 
       tx.success();
     }
+  }
+
+  public String query() {
+
+    Node start = graphDb.getNodeById(0);
+    TraversalDescription T = Traversal
+        .description()
+        .uniqueness( Uniqueness.RELATIONSHIP_GLOBAL )
+        .breadthFirst()
+        .relationships( DynamicRelationshipType.withName("idxCon"), Direction.OUTGOING )
+        .evaluator(new Evaluator() {
+          @Override
+          public Evaluation evaluate(Path path) {
+            /*
+            String currentColor = (String) path.endNode().getProperty( "color" );
+            boolean endOfTheLine = path.length()+1 >= colors.length;
+            return currentColor.equals( colors[path.length()] ) ?
+                Evaluation.of( endOfTheLine, !endOfTheLine ) : Evaluation.EXCLUDE_AND_PRUNE;
+            */
+            return Evaluation.EXCLUDE_AND_PRUNE;
+          }
+        });
+
+    return "";
+  }
+
+  public String indexCollection(String collectionId) {
+    try ( Transaction tx = graphDb.beginTx() ) {
+      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, "nodeIdx" )
+      {
+        @Override
+        protected void initialize( Node created, Map<String, Object> properties )
+        {
+          created.setProperty( "id", properties.get( "id" ) );
+        }
+      };
+      collectionNode = factory.getOrCreate("id", collectionId);
+      tx.success();
+    }
+
+
+    return "";
   }
 
   public String indexGeoJSON(String geoString) {
@@ -150,10 +200,13 @@ public class CollectionIndex {
     try ( Transaction tx = graphDb.beginTx() ) {
       //get root node
       Node fromNode = graphDb.getNodeById(0);
-
+      String lastId = null;
       ArrayList<String> ids = box.getIds(numDecimals);
 
       for(String id: ids) {
+
+        lastId = id;
+
         //create new node
         Node toNode = nodeFactory.getOrCreate( "id", id );
 
@@ -170,6 +223,14 @@ public class CollectionIndex {
         //point fromNode to toNode
         fromNode = toNode;
       }
+
+      //create relationship to collection Node
+      UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, "colRelIdx", "colRelIdxContain");
+      if(colRel.wasCreated()) {
+        colRel.entity().setProperty("from", 0);
+        colRel.entity().setProperty("to", 9999);
+      }
+
       tx.success();
       return ids.toString();
     }
@@ -193,11 +254,15 @@ public class CollectionIndex {
   }
 
   private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue) {
+    return createRelationship(start, end, indexableKey, indexableValue, "relIdx", "idxContain");
+  }
 
-    UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, "relIdx") {
+  private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue, String indexName, final String relName) {
+
+    UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, indexName) {
       @Override
       protected Relationship create(Map<String, Object> properties) {
-        Relationship r =  start.createRelationshipTo(end, DynamicRelationshipType.withName("idxContain"));
+        Relationship r =  start.createRelationshipTo(end, DynamicRelationshipType.withName(relName));
         return r;
       }
     };
