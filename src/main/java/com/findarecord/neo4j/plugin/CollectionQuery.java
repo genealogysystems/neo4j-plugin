@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Set;
 
 public class CollectionQuery {
 
@@ -78,7 +79,7 @@ public class CollectionQuery {
       TraversalDescription traversal = new TraversalDescriptionImpl()
       .breadthFirst()
       //only traverse paths in our bounding box
-      .evaluator(getBoxEvaluator(minLon,maxLon,minLat,maxLat))
+      .evaluator(getBoxEvaluator(minLon, maxLon, minLat, maxLat))
       //only return collections
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
@@ -113,6 +114,57 @@ public class CollectionQuery {
            return Evaluation.EXCLUDE_AND_PRUNE;
         } else {
            return Evaluation.INCLUDE_AND_CONTINUE;
+        }
+      }
+    };
+  }
+
+  private Evaluator getCoverageEvaluator(final double from, final double to) {
+    return new Evaluator() {
+      @Override
+      public Evaluation evaluate( final Path path )
+      {
+        if ( path.length() == 0 )
+        {
+          return Evaluation.EXCLUDE_AND_CONTINUE;
+        }
+
+        //if outside our boundary, exclude and prune, else include and continue
+        Relationship rel = path.lastRelationship();
+        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))
+            && (from > (double)rel.getProperty("to")
+               || to < (double)rel.getProperty("from")
+               )
+            ) {
+          return Evaluation.EXCLUDE_AND_PRUNE;
+        } else {
+          return Evaluation.INCLUDE_AND_CONTINUE;
+        }
+      }
+    };
+  }
+
+  private Evaluator getCollectionEvaluator(final double from, final double to, final Set<String> tags) {
+    return new Evaluator() {
+      @Override
+      public Evaluation evaluate( final Path path )
+      {
+        if ( path.length() == 0 )
+        {
+          return Evaluation.EXCLUDE_AND_CONTINUE;
+        }
+
+        //if outside our boundary, exclude and prune, else include and continue
+        Relationship rel = path.lastRelationship();
+        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_COVERAGE_CONTAINS))
+            && (from > (double)rel.getProperty("to")
+               || to < (double)rel.getProperty("from")
+               || !tags.contains((String)rel.getProperty("tag"))
+               )
+            ) {
+          return Evaluation.EXCLUDE_AND_PRUNE;
+        } else {
+          return Evaluation.INCLUDE_AND_CONTINUE;
         }
       }
     };
