@@ -21,22 +21,22 @@ public class Box {
 
   private Polygon polygon;
 
-  public Box(double lat, double lon, double precision) {
+  public Box(double lon, double lat, double precision) {
     this.lat = lat;
     this.lon = lon;
     this.precision = precision;
     Coordinate[] coords = new Coordinate[5];
     coords[0] = new Coordinate(lon,lat);
-    coords[1] = new Coordinate(lon,lat+precision);
-    coords[2] = new Coordinate(lon-precision,lat+precision);
-    coords[3] = new Coordinate(lon-precision,lat);
+    coords[1] = new Coordinate(lon+precision,lat);
+    coords[2] = new Coordinate(lon+precision,lat+precision);
+    coords[3] = new Coordinate(lon,lat+precision);
     coords[4] = new Coordinate(lon,lat);
     LinearRing ring = new GeometryFactory().createLinearRing(coords);
     polygon = new GeometryFactory().createPolygon(ring,null);
   }
 
   public String toString() {
-    return lat+":"+lon+" - "+precision;
+    return lat+","+lon+":"+(lat+precision)+","+(lon+precision);
   }
 
   public Geometry getPolygon() {

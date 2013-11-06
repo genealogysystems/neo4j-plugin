@@ -70,20 +70,20 @@ public class CollectionIndex {
 
       //if geometryToIndex intersects this boxes, recurse
       if(geometryToIndex.intersects(box.getPolygon())) {
-        //ret += "intersect found:"+box.toString()+" || ";
-        ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), 1);
+        ret += "intersect found:"+box.toString()+" || ";
+        ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), 1);
       }
     }
     return ret;
   }
 
-  private String indexNLevel(Geometry geometryToIndex, double lat, double lon, double precision) {
+  private String indexNLevel(Geometry geometryToIndex, double lon, double lat, double precision) {
     String ret = "";
 
     //get boxes for this level
-    ArrayList<Box> boxes = getNLevelBoxes(lat, lon, precision);
+    ArrayList<Box> boxes = getNLevelBoxes(lon, lat, precision);
 
-    //ret += "level "+lat+" "+lon+" "+precision+" - boxes="+boxes.size()+" || ";
+    ret += "level "+lon+" "+lat+" "+precision+" - boxes="+boxes.size()+" || ";
 
     //loop through boxes
     for(Box box : boxes) {
@@ -93,14 +93,16 @@ public class CollectionIndex {
         continue;
       }
 
+      ret += "box: "+box.toString()+" || ";
+
       //if geometryToIndex intersects this boxes, recurse or stop
       if(geometryToIndex.intersects(box.getPolygon())) {
-        //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
         if(precision == Settings.DEPTH) {
           ret += insertBox(box);
         } else {
-          ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), precision/Settings.WIDTH);
+          ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision/Settings.WIDTH);
         }
       }
     }
@@ -111,28 +113,28 @@ public class CollectionIndex {
 
     ArrayList<Box> boxes = new ArrayList<>();
     int precision = 10;
-    int fromLat = 90;
-    int toLat = -90;
     int fromLon = -180;
     int toLon = 180;
+    int fromLat = -90;
+    int toLat = 90;
 
     for(int lon=fromLon;lon<toLon; lon = lon+precision) {
-      for(int lat=fromLat;lat>toLat; lat = lat-precision) {
-        boxes.add(new Box(lat,lon, precision));
+      for(int lat=fromLat;lat<toLat; lat = lat+precision) {
+        boxes.add(new Box(lon,lat, precision));
       }
     }
 
     return boxes;
   }
 
-  private ArrayList<Box> getNLevelBoxes(double fromLat, double fromLon, double precision) {
+  private ArrayList<Box> getNLevelBoxes(double fromLon, double fromLat, double precision) {
     ArrayList<Box> boxes = new ArrayList<>();
-    double toLat = fromLat-(precision*Settings.WIDTH);
+    double toLat = fromLat+(precision*Settings.WIDTH);
     double toLon = fromLon+(precision*Settings.WIDTH);
 
     for(double lon=fromLon;lon<toLon; lon = lon+precision) {
-      for(double lat=fromLat;lat>toLat; lat = lat-precision) {
-        boxes.add(new Box(lat,lon, precision));
+      for(double lat=fromLat;lat<toLat; lat = lat+precision) {
+        boxes.add(new Box(lon,lat, precision));
       }
     }
 
@@ -168,9 +170,8 @@ public class CollectionIndex {
         if(rel.wasCreated()) {
           rel.entity().setProperty("minLat", box.getLat());
           rel.entity().setProperty("maxLat", box.getLat()+box.getPrecision());
-
-          rel.entity().setProperty("minLon", box.getLon()-box.getPrecision());
-          rel.entity().setProperty("maxLon", box.getLon());
+          rel.entity().setProperty("minLon", box.getLon());
+          rel.entity().setProperty("maxLon", box.getLon()+box.getPrecision());
         }
 
         //point fromNode to toNode
