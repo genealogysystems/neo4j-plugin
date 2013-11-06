@@ -65,10 +65,10 @@ public class CollectionQuery {
     Envelope envelope = geometry.getEnvelopeInternal();
 
     //get min and max latitude
-    double minLat = envelope.getMinY();
-    double maxLat = envelope.getMaxY();
     double minLon = envelope.getMinX();
     double maxLon = envelope.getMaxX();
+    double minLat = envelope.getMinY();
+    double maxLat = envelope.getMaxY();
 
     //perform query
     try(Transaction tx = graphDb.beginTx()) {
@@ -78,7 +78,7 @@ public class CollectionQuery {
       TraversalDescription traversal = new TraversalDescriptionImpl()
       .breadthFirst()
       //only traverse paths in our bounding box
-      //.evaluator(getBoxEvaluator(minLat,maxLat,minLon,maxLon));
+      .evaluator(getBoxEvaluator(minLon,maxLon,minLat,maxLat))
       //only return collections
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
@@ -91,7 +91,7 @@ public class CollectionQuery {
     return collectionIDs;
   }
 
-  private Evaluator getBoxEvaluator(double minLat, double maxLat, double minLon, double maxLon) {
+  private Evaluator getBoxEvaluator(final double minLon, final double maxLon, final double minLat, final double maxLat) {
     return new Evaluator() {
       @Override
       public Evaluation evaluate( final Path path )
@@ -101,9 +101,19 @@ public class CollectionQuery {
           return Evaluation.EXCLUDE_AND_CONTINUE;
         }
 
-        boolean isExpectedType = path.lastRelationship().isType(DynamicRelationshipType.withName("bogus"));
-
-        return Evaluation.ofIncludes(isExpectedType);
+        //if outside our boundary, exclude and prune, else include and continue
+        Relationship rel = path.lastRelationship();
+        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK))
+           && (maxLon < (double)rel.getProperty("minLon")
+              || maxLat < (double)rel.getProperty("minLat")
+              || minLon > (double)rel.getProperty("maxLon")
+              || minLat > (double)rel.getProperty("maxLat")
+              )
+          ) {
+           return Evaluation.EXCLUDE_AND_PRUNE;
+        } else {
+           return Evaluation.INCLUDE_AND_CONTINUE;
+        }
       }
     };
   }
