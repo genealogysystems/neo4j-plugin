@@ -6,7 +6,12 @@ import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.util.GeometricShapeFactory;
 import org.geotools.geojson.geom.GeometryJSON;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.traversal.Evaluation;
+import org.neo4j.graphdb.traversal.Evaluator;
+import org.neo4j.graphdb.traversal.Evaluators;
+import org.neo4j.graphdb.traversal.TraversalDescription;
+import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -54,7 +59,7 @@ public class CollectionQuery {
   }
 
   private ArrayList<String> queryGeometry(Geometry geometry) {
-    ArrayList<String> collectionIDs;
+    ArrayList<String> collectionIDs = new ArrayList<>();
 
     //create bounding envelope
     Envelope envelope = geometry.getEnvelopeInternal();
@@ -66,17 +71,41 @@ public class CollectionQuery {
     double maxLon = envelope.getMaxX();
 
     //perform query
-    collectionIDs = doNeo4jTraversal();
+    try(Transaction tx = graphDb.beginTx()) {
+
+      Node start;
+      start = graphDb.getNodeById(0);
+      TraversalDescription traversal = new TraversalDescriptionImpl()
+      .breadthFirst()
+      //only traverse paths in our bounding box
+      //.evaluator(getBoxEvaluator(minLat,maxLat,minLon,maxLon));
+      //only return collections
+      .evaluator( Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName("colRelIdxContain")));
+
+      for(Path path : traversal.traverse(start)) {
+        collectionIDs.add(path.endNode().getId()+"");
+      }
+      tx.success();
+    }
 
     return collectionIDs;
   }
 
-  private ArrayList<String> doNeo4jTraversal() {
-    ArrayList<String> collectionIDs = new ArrayList<>();
+  private Evaluator getBoxEvaluator(double minLat, double maxLat, double minLon, double maxLon) {
+    return new Evaluator() {
+      @Override
+      public Evaluation evaluate( final Path path )
+      {
+        if ( path.length() == 0 )
+        {
+          return Evaluation.EXCLUDE_AND_CONTINUE;
+        }
 
-    collectionIDs.add("test");
+        boolean isExpectedType = path.lastRelationship().isType(DynamicRelationshipType.withName("idxContain"));
 
-    return collectionIDs;
+        return Evaluation.ofIncludes(isExpectedType);
+      }
+    };
   }
 
   private Geometry geoJSONtoGeometry(String geoString) {

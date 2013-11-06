@@ -4,8 +4,6 @@ import com.vividsolutions.jts.geom.*;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.UniqueFactory;
-import org.neo4j.graphdb.traversal.TraversalDescription;
-import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -16,44 +14,17 @@ import java.util.Map;
 
 public class CollectionIndex {
 
-  private double depth = 0.001;
-  private int numDecimals = 3;
-  private int width = 10;
   private GraphDatabaseService graphDb;
-  private UniqueFactory<Node> nodeFactory;
 
   private Node collectionNode;
 
-  private String collectionIndexName = "colIdx";
-
   public CollectionIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
-    try ( Transaction tx = graphDb.beginTx() ) {
-      nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, "nodeIdx" )
-      {
-        @Override
-        protected void initialize( Node created, Map<String, Object> properties )
-        {
-          created.setProperty( "id", properties.get( "id" ) );
-        }
-      };
-
-      tx.success();
-    }
-  }
-
-  public String query() {
-
-    Node start = graphDb.getNodeById(0);
-    TraversalDescription traversal = new TraversalDescriptionImpl();
-    traversal.breadthFirst();
-
-    return "";
   }
 
   public String indexCollection(String collectionId) {
     try ( Transaction tx = graphDb.beginTx() ) {
-      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, "nodeIdx" )
+      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_COLLECTION )
       {
         @Override
         protected void initialize( Node created, Map<String, Object> properties )
@@ -126,10 +97,10 @@ public class CollectionIndex {
       if(geometryToIndex.intersects(box.getPolygon())) {
         //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
-        if(precision == depth) {
+        if(precision == Settings.DEPTH) {
           ret += insertBox(box);
         } else {
-          ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), precision/width);
+          ret += indexNLevel(geometryToIndex, box.getLat(), box.getLon(), precision/Settings.WIDTH);
         }
       }
     }
@@ -156,8 +127,8 @@ public class CollectionIndex {
 
   private ArrayList<Box> getNLevelBoxes(double fromLat, double fromLon, double precision) {
     ArrayList<Box> boxes = new ArrayList<>();
-    double toLat = fromLat-(precision*width);
-    double toLon = fromLon+(precision*width);
+    double toLat = fromLat-(precision*Settings.WIDTH);
+    double toLon = fromLon+(precision*Settings.WIDTH);
 
     for(double lon=fromLon;lon<toLon; lon = lon+precision) {
       for(double lat=fromLat;lat>toLat; lat = lat-precision) {
@@ -174,7 +145,16 @@ public class CollectionIndex {
       //get root node
       Node fromNode = graphDb.getNodeById(0);
       String lastId = null;
-      ArrayList<String> ids = box.getIds(numDecimals);
+      ArrayList<String> ids = box.getIds(Settings.DECIMALS);
+
+      UniqueFactory<Node> nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_BOX )
+      {
+        @Override
+        protected void initialize( Node created, Map<String, Object> properties )
+        {
+          created.setProperty( "id", properties.get( "id" ) );
+        }
+      };
 
       for(String id: ids) {
 
@@ -184,7 +164,7 @@ public class CollectionIndex {
         Node toNode = nodeFactory.getOrCreate( "id", id );
 
         //create relationship
-        UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id);
+        UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
         if(rel.wasCreated()) {
           rel.entity().setProperty("minLat", box.getLat());
           rel.entity().setProperty("maxLat", box.getLat()+box.getPrecision());
@@ -198,7 +178,7 @@ public class CollectionIndex {
       }
 
       //create relationship to collection Node
-      UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, "colRelIdx", "colRelIdxContain");
+      UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
       if(colRel.wasCreated()) {
         colRel.entity().setProperty("from", 0);
         colRel.entity().setProperty("to", 9999);
@@ -222,10 +202,6 @@ public class CollectionIndex {
     }
 
     return geometry;
-  }
-
-  private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue) {
-    return createRelationship(start, end, indexableKey, indexableValue, "relIdx", "idxContain");
   }
 
   private UniqueFactory.UniqueEntity<Relationship> createRelationship(final Node start, final Node end, String indexableKey, final String indexableValue, String indexName, final String relName) {
