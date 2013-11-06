@@ -80,7 +80,7 @@ public class CollectionQuery {
       //only traverse paths in our bounding box
       //.evaluator(getBoxEvaluator(minLat,maxLat,minLon,maxLon));
       //only return collections
-      .evaluator( Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName("colRelIdxContain")));
+      .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
       for(Path path : traversal.traverse(start)) {
         collectionIDs.add(path.endNode().getId()+"");
@@ -101,7 +101,7 @@ public class CollectionQuery {
           return Evaluation.EXCLUDE_AND_CONTINUE;
         }
 
-        boolean isExpectedType = path.lastRelationship().isType(DynamicRelationshipType.withName("idxContain"));
+        boolean isExpectedType = path.lastRelationship().isType(DynamicRelationshipType.withName("bogus"));
 
         return Evaluation.ofIncludes(isExpectedType);
       }

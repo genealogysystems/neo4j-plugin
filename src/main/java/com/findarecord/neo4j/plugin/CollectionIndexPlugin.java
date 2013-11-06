@@ -30,6 +30,8 @@ public class CollectionIndexPlugin extends ServerPlugin {
   @Description( "Index a Collection" )
   @PluginTarget( GraphDatabaseService.class )
   public Iterable<String> index( @Source GraphDatabaseService graphDb,
+                                 @Description( "The collection id" )
+                                 @Parameter( name = "collection_id" ) String collectionId,
                                  @Description( "The geojson string" )
                                  @Parameter( name = "geojson" ) String geojson) {
     //create result string
@@ -39,7 +41,7 @@ public class CollectionIndexPlugin extends ServerPlugin {
     CollectionIndex idx = new CollectionIndex(graphDb);
 
     //index collection
-    result.add(idx.indexCollection("col:testing"));
+    result.add(idx.indexCollection(collectionId));
 
     //index the passed in geojson
     String res = idx.indexGeoJSON(geojson);
