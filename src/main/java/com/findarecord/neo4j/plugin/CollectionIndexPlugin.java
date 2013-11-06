@@ -8,18 +8,22 @@ import java.util.ArrayList;
 @Description( "Find-A-Record Collections Index" )
 public class CollectionIndexPlugin extends ServerPlugin {
 
-  @Name( "query" )
+  @Name( "query_distance" )
   @Description( "Perform a Collection query" )
   @PluginTarget( GraphDatabaseService.class )
-  public Iterable<String> query( @Source GraphDatabaseService graphDb ) {
+  public Iterable<String> queryDistance( @Source GraphDatabaseService graphDb,
+                                         @Description( "The latitude" )
+                                         @Parameter( name = "lat" ) Double lat,
+                                         @Description( "The longitude" )
+                                         @Parameter( name = "lon" ) Double lon,
+                                         @Description( "The radius" )
+                                         @Parameter( name = "radius" ) Double radius) {
     ArrayList<String> result = new ArrayList<>();
 
     //instantiate collections index
-    CollectionIndex idx = new CollectionIndex(graphDb);
+    CollectionQuery idx = new CollectionQuery(graphDb);
 
-    result.add(idx.query());
-
-    return result;
+    return idx.queryDistance(lat,lon,radius);
   }
 
   @Name( "index" )
