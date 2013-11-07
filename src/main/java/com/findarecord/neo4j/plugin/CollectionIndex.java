@@ -8,6 +8,7 @@ import org.neo4j.graphdb.index.UniqueFactory;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Map;
 
@@ -70,20 +71,20 @@ public class CollectionIndex {
 
       //if geometryToIndex intersects this boxes, recurse
       if(geometryToIndex.intersects(box.getPolygon())) {
-        ret += "intersect found:"+box.toString()+" || ";
-        ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), 1);
+        //ret += "intersect found:"+box.toString()+" || ";
+        ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), new BigDecimal(1));
       }
     }
     return ret;
   }
 
-  private String indexNLevel(Geometry geometryToIndex, double lon, double lat, double precision) {
+  private String indexNLevel(Geometry geometryToIndex, BigDecimal lon, BigDecimal lat, BigDecimal precision) {
     String ret = "";
 
     //get boxes for this level
     ArrayList<Box> boxes = getNLevelBoxes(lon, lat, precision);
 
-    ret += "level "+lon+" "+lat+" "+precision+" - boxes="+boxes.size()+" || ";
+    //ret += "level "+lon+" "+lat+" "+precision+" - boxes="+boxes.size()+" || ";
 
     //loop through boxes
     for(Box box : boxes) {
@@ -93,16 +94,16 @@ public class CollectionIndex {
         continue;
       }
 
-      ret += "box: "+box.toString()+" || ";
+      //ret += "box: "+box.toString()+" || ";
 
       //if geometryToIndex intersects this boxes, recurse or stop
       if(geometryToIndex.intersects(box.getPolygon())) {
-        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
-        if(precision == Settings.DEPTH) {
+        if(precision.compareTo(Settings.DEPTH) >= 0) {
           ret += insertBox(box);
         } else {
-          ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision/Settings.WIDTH);
+          ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision.divide(Settings.WIDTH));
         }
       }
     }
@@ -120,20 +121,20 @@ public class CollectionIndex {
 
     for(int lon=fromLon;lon<toLon; lon = lon+precision) {
       for(int lat=fromLat;lat<toLat; lat = lat+precision) {
-        boxes.add(new Box(lon,lat, precision));
+        boxes.add(new Box(new BigDecimal(lon),new BigDecimal(lat), new BigDecimal(precision)));
       }
     }
 
     return boxes;
   }
 
-  private ArrayList<Box> getNLevelBoxes(double fromLon, double fromLat, double precision) {
+  private ArrayList<Box> getNLevelBoxes(BigDecimal fromLon, BigDecimal fromLat, BigDecimal precision) {
     ArrayList<Box> boxes = new ArrayList<>();
-    double toLat = fromLat+(precision*Settings.WIDTH);
-    double toLon = fromLon+(precision*Settings.WIDTH);
+    BigDecimal toLat = fromLat.add(precision.multiply(Settings.WIDTH));
+    BigDecimal toLon = fromLon.add(precision.multiply(Settings.WIDTH));
 
-    for(double lon=fromLon;lon<toLon; lon = lon+precision) {
-      for(double lat=fromLat;lat<toLat; lat = lat+precision) {
+    for(BigDecimal lon=fromLon;lon.compareTo(toLon) < 0; lon = lon.add(precision)) {
+      for(BigDecimal lat=fromLat;lat.compareTo(toLat) < 0; lat = lat.add(precision)) {
         boxes.add(new Box(lon,lat, precision));
       }
     }
@@ -168,10 +169,10 @@ public class CollectionIndex {
         //create relationship
         UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
         if(rel.wasCreated()) {
-          rel.entity().setProperty("minLat", box.getLat());
-          rel.entity().setProperty("maxLat", box.getLat()+box.getPrecision());
-          rel.entity().setProperty("minLon", box.getLon());
-          rel.entity().setProperty("maxLon", box.getLon()+box.getPrecision());
+          rel.entity().setProperty("minLat", box.getLat().doubleValue());
+          rel.entity().setProperty("maxLat", box.getLat().add(box.getPrecision()).doubleValue());
+          rel.entity().setProperty("minLon", box.getLon().doubleValue());
+          rel.entity().setProperty("maxLon", box.getLon().add(box.getPrecision()).doubleValue());
         }
 
         //point fromNode to toNode
@@ -186,7 +187,8 @@ public class CollectionIndex {
       }
 
       tx.success();
-      return ids.toString();
+      //return ids.toString();
+      return "";
     }
 
   }
