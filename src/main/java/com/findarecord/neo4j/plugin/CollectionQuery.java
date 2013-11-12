@@ -17,6 +17,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 public class CollectionQuery {
@@ -27,7 +29,7 @@ public class CollectionQuery {
      this.graphDb = graphDb;
   }
 
-  public ArrayList<String> queryPolygon(String geoString) {
+  public ArrayList<String> queryPolygon(String geoString, Integer from, Integer to, String[] tags) {
     ArrayList<String> collectionIDs = new ArrayList<>();
 
     //get geometry
@@ -35,13 +37,13 @@ public class CollectionQuery {
 
     //if we have a valid geometry, query it
     if(geometry != null) {
-       collectionIDs = queryGeometry(geometry);
+       collectionIDs = queryGeometry(geometry, from, to, tags);
     }
 
     return collectionIDs;
   }
 
-  public ArrayList<String> queryDistance(double lat, double lon, double radius) {
+  public ArrayList<String> queryDistance(double lat, double lon, double radius, Integer from, Integer to, String[] tags) {
     ArrayList<String> collectionIDs;
 
     //TODO convert radius properly
@@ -54,12 +56,12 @@ public class CollectionQuery {
     Geometry circle = shapeFactory.createCircle();
 
     //perform query
-    collectionIDs = queryGeometry(circle);
+    collectionIDs = queryGeometry(circle, from, to, tags);
 
     return collectionIDs;
   }
 
-  private ArrayList<String> queryGeometry(Geometry geometry) {
+  private ArrayList<String> queryGeometry(Geometry geometry, Integer from, Integer to, String[] tags) {
     ArrayList<String> collectionIDs = new ArrayList<>();
 
     //create bounding envelope
@@ -79,12 +81,12 @@ public class CollectionQuery {
       TraversalDescription traversal = new TraversalDescriptionImpl()
       .breadthFirst()
       //only traverse paths in our bounding box
-      .evaluator(getBoxEvaluator(minLon, maxLon, minLat, maxLat))
+      .evaluator(getEvaluator(minLon, maxLon, minLat, maxLat, from, to, new HashSet<String>(Arrays.asList(tags))))
       //only return collections
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
       for(Path path : traversal.traverse(start)) {
-        collectionIDs.add(path.endNode().getId()+"");
+        collectionIDs.add((String)path.endNode().getProperty("id"));
       }
       tx.success();
     }
@@ -92,7 +94,7 @@ public class CollectionQuery {
     return collectionIDs;
   }
 
-  private Evaluator getBoxEvaluator(final double minLon, final double maxLon, final double minLat, final double maxLat) {
+  private Evaluator getEvaluator(final double minLon, final double maxLon, final double minLat, final double maxLat,final int from, final int to, final Set<String> tags) {
     return new Evaluator() {
       @Override
       public Evaluation evaluate( final Path path )
@@ -102,8 +104,11 @@ public class CollectionQuery {
           return Evaluation.EXCLUDE_AND_CONTINUE;
         }
 
+        boolean includeAndContinue = true;
+
         //if outside our boundary, exclude and prune, else include and continue
         Relationship rel = path.lastRelationship();
+        Node node = path.endNode();
         if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK))
            && (maxLon < (double)rel.getProperty("minLon")
               || maxLat < (double)rel.getProperty("minLat")
@@ -111,40 +116,36 @@ public class CollectionQuery {
               || minLat > (double)rel.getProperty("maxLat")
               )
           ) {
-           return Evaluation.EXCLUDE_AND_PRUNE;
-        } else {
-           return Evaluation.INCLUDE_AND_CONTINUE;
+          includeAndContinue = false;
         }
-      }
-    };
-  }
+        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))) {
+          boolean hasTags = false;
+          String[] nodeTags = (String[])node.getProperty("tags");
+          for(String nodeTag:nodeTags) {
+            if(tags.contains(nodeTag)) {
+              hasTags = true;
+            }
+          }
 
-  private Evaluator getCoverageEvaluator(final double from, final double to) {
-    return new Evaluator() {
-      @Override
-      public Evaluation evaluate( final Path path )
-      {
-        if ( path.length() == 0 )
-        {
-          return Evaluation.EXCLUDE_AND_CONTINUE;
+          if(from > (int)node.getProperty("to")
+              || to < (int)node.getProperty("from")
+              || !hasTags) {
+            includeAndContinue = false;
+          }
         }
 
-        //if outside our boundary, exclude and prune, else include and continue
-        Relationship rel = path.lastRelationship();
-        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))
-            && (from > (double)rel.getProperty("to")
-               || to < (double)rel.getProperty("from")
-               )
-            ) {
-          return Evaluation.EXCLUDE_AND_PRUNE;
-        } else {
+
+        if(includeAndContinue) {
           return Evaluation.INCLUDE_AND_CONTINUE;
+        } else {
+          return Evaluation.EXCLUDE_AND_PRUNE;
         }
+
       }
     };
   }
 
-  private Evaluator getCollectionEvaluator(final double from, final double to, final Set<String> tags) {
+  private Evaluator getCollectionEvaluator(final int from, final int to, final Set<String> tags) {
     return new Evaluator() {
       @Override
       public Evaluation evaluate( final Path path )
@@ -155,14 +156,29 @@ public class CollectionQuery {
         }
 
         //if outside our boundary, exclude and prune, else include and continue
+        Node node = path.endNode();
         Relationship rel = path.lastRelationship();
-        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_COVERAGE_CONTAINS))
-            && (from > (double)rel.getProperty("to")
-               || to < (double)rel.getProperty("from")
-               || !tags.contains((String)rel.getProperty("tag"))
-               )
-            ) {
+        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_COVERAGE_CONTAINS))) {
           return Evaluation.EXCLUDE_AND_PRUNE;
+          /*
+          boolean hasTags = false;
+          String[] nodeTags = (String[])node.getProperty("tags");
+          for(String nodeTag:nodeTags) {
+            if(tags.contains(nodeTag)) {
+              hasTags = true;
+            }
+          }
+
+          hasTags = false;
+
+          if(from > (int)node.getProperty("to")
+                 || to < (int)node.getProperty("from")
+                 || !hasTags) {
+            return Evaluation.EXCLUDE_AND_PRUNE;
+          } else {
+            return Evaluation.EXCLUDE_AND_PRUNE;
+          }
+          */
         } else {
           return Evaluation.INCLUDE_AND_CONTINUE;
         }

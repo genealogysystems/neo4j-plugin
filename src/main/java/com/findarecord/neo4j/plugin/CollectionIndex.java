@@ -23,7 +23,7 @@ public class CollectionIndex {
     this.graphDb = graphDb;
   }
 
-  public String indexCollection(String collectionId) {
+  public String indexCollection(String collectionId, Integer from, Integer to, String[] tags) {
     try ( Transaction tx = graphDb.beginTx() ) {
       UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_COLLECTION )
       {
@@ -34,6 +34,10 @@ public class CollectionIndex {
         }
       };
       collectionNode = factory.getOrCreate("id", collectionId);
+      collectionNode.setProperty("from",from);
+      collectionNode.setProperty("to",to);
+      collectionNode.setProperty("tags",tags);
+      collectionNode.addLabel(DynamicLabel.label( "Collection" ));
       tx.success();
     }
 
