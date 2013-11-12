@@ -23,13 +23,17 @@ public class CollectionIndexPlugin extends ServerPlugin {
                                          @Description( "to" )
                                          @Parameter( name = "to" ) Integer to,
                                          @Description( "tags" )
-                                         @Parameter( name = "tags" ) String[] tags) {
+                                         @Parameter( name = "tags" ) String[] tags,
+                                         @Description( "count" )
+                                         @Parameter( name = "count" ) Integer count,
+                                         @Description( "offset" )
+                                         @Parameter( name = "offset" ) Integer offset) {
     ArrayList<String> result = new ArrayList<>();
 
     //instantiate collections index
     CollectionQuery idx = new CollectionQuery(graphDb);
 
-    return idx.queryDistance(lat,lon,radius, from, to, tags);
+    return idx.queryDistance(lat,lon,radius, from, to, tags, count, offset);
   }
 
   @Name( "index" )

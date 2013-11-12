@@ -26,7 +26,7 @@ public class CollectionQuery {
      this.graphDb = graphDb;
   }
 
-  public ArrayList<String> queryPolygon(String geoString, Integer from, Integer to, String[] tags) {
+  public ArrayList<String> queryPolygon(String geoString, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
     ArrayList<String> collectionIDs = new ArrayList<>();
 
     //get geometry
@@ -34,13 +34,13 @@ public class CollectionQuery {
 
     //if we have a valid geometry, query it
     if(geometry != null) {
-       collectionIDs = queryGeometry(geometry, from, to, tags);
+       collectionIDs = queryGeometry(geometry, from, to, tags, count, offset);
     }
 
     return collectionIDs;
   }
 
-  public ArrayList<String> queryDistance(double lat, double lon, double radius, Integer from, Integer to, String[] tags) {
+  public ArrayList<String> queryDistance(double lat, double lon, double radius, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
     ArrayList<String> collectionIDs;
 
     //TODO convert radius properly
@@ -53,12 +53,12 @@ public class CollectionQuery {
     Geometry circle = shapeFactory.createCircle();
 
     //perform query
-    collectionIDs = queryGeometry(circle, from, to, tags);
+    collectionIDs = queryGeometry(circle, from, to, tags, count, offset);
 
     return collectionIDs;
   }
 
-  private ArrayList<String> queryGeometry(Geometry geometry, Integer from, Integer to, String[] tags) {
+  private ArrayList<String> queryGeometry(Geometry geometry, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
     ArrayList<String> collectionIDs = new ArrayList<>();
 
     //create bounding envelope
@@ -99,8 +99,13 @@ public class CollectionQuery {
         }
       });
 
+      int i = 0;
+      int end = offset+count;
       for(Node col: hits) {
-        collectionIDs.add((String)col.getProperty("id"));
+        if(i >= offset && i < end) {
+          collectionIDs.add((String)col.getProperty("id"));
+        }
+        i++;
       }
       tx.success();
     }
