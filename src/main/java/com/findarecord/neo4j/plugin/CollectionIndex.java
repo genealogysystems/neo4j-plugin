@@ -37,7 +37,13 @@ public class CollectionIndex {
       collectionNode.setProperty("from",from);
       collectionNode.setProperty("to",to);
       collectionNode.setProperty("tags",tags);
-      collectionNode.addLabel(DynamicLabel.label( "Collection" ));
+      //collectionNode.addLabel(DynamicLabel.label( "Collection" ));
+
+      //remove all old relationships
+      for(Relationship rel: collectionNode.getRelationships()) {
+        rel.delete();
+      }
+
       tx.success();
     }
 
@@ -102,11 +108,12 @@ public class CollectionIndex {
 
       //if geometryToIndex intersects this boxes, recurse or stop
       if(geometryToIndex.intersects(box.getPolygon())) {
-        //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
-        if(precision.compareTo(Settings.DEPTH) >= 0) {
+        if(precision.compareTo(Settings.DEPTH) <= 0) {
           ret += insertBox(box);
         } else {
+          ret += "recursing: new precision is "+precision.divide(Settings.WIDTH)+" || ";
           ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision.divide(Settings.WIDTH));
         }
       }
@@ -184,15 +191,12 @@ public class CollectionIndex {
       }
 
       //create relationship to collection Node
-      UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
-      if(colRel.wasCreated()) {
-        colRel.entity().setProperty("from", 0);
-        colRel.entity().setProperty("to", 9999);
-      }
+      fromNode.createRelationshipTo(collectionNode, DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT));
+      //UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
 
       tx.success();
-      //return ids.toString();
-      return "";
+      return ids.toString();
+      //return "";
     }
 
   }
@@ -216,7 +220,7 @@ public class CollectionIndex {
     UniqueFactory<Relationship> factory = new UniqueFactory.UniqueRelationshipFactory(graphDb, indexName) {
       @Override
       protected Relationship create(Map<String, Object> properties) {
-        return start.createRelationshipTo(end, DynamicRelationshipType.withName(relName));
+        return end.createRelationshipTo(start, DynamicRelationshipType.withName(relName));
       }
     };
 

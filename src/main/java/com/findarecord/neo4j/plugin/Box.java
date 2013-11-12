@@ -22,8 +22,8 @@ public class Box {
   private Polygon polygon;
 
   public Box(BigDecimal lon, BigDecimal lat, BigDecimal precision) {
-    this.lat = lat;
     this.lon = lon;
+    this.lat = lat;
     this.precision = precision;
     Coordinate[] coords = new Coordinate[5];
     coords[0] = new Coordinate(lon.doubleValue(),lat.doubleValue());
@@ -36,7 +36,7 @@ public class Box {
   }
 
   public String toString() {
-    return lat+","+lon+":"+lat.add(precision)+","+lon.add(precision);
+    return lon+","+lat+":"+lon.add(precision)+","+lat.add(precision);
   }
 
   public Geometry getPolygon() {
@@ -67,7 +67,7 @@ public class Box {
     ids.add(id);
 
     for (int i = 3; i < latString.length(); i++){
-      id += ":"+latString.charAt(i)+","+lonString.charAt(i);
+      id += ":"+lonString.charAt(i)+","+latString.charAt(i);
       ids.add(id);
     }
 
@@ -80,7 +80,8 @@ public class Box {
     String part2;
 
     //get string
-    BigDecimal bdNum = new BigDecimal(Math.abs(num.doubleValue())).setScale(numDecimals, RoundingMode.FLOOR);
+    //BigDecimal bdNum = new BigDecimal(Math.abs(num.doubleValue())).setScale(numDecimals, RoundingMode.FLOOR);
+    BigDecimal bdNum = num.abs();
     String numString = bdNum.toString();
 
     //split on decimal

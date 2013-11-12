@@ -16,10 +16,7 @@ import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class CollectionQuery {
 
@@ -85,8 +82,25 @@ public class CollectionQuery {
       //only return collections
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
+      List<Node> hits = new ArrayList<Node>();
+
       for(Path path : traversal.traverse(start)) {
-        collectionIDs.add((String)path.endNode().getProperty("id"));
+        hits.add(path.endNode());
+      }
+
+      Collections.sort(hits, new Comparator<Node>() {
+        @Override
+        public int compare(Node node, Node node2) {
+          if(node.getId()>node2.getId()) {
+            return -1;
+          } else {
+            return 1;
+          }
+        }
+      });
+
+      for(Node col: hits) {
+        collectionIDs.add((String)col.getProperty("id"));
       }
       tx.success();
     }
@@ -124,7 +138,6 @@ public class CollectionQuery {
           //if we were passed in no tags, don't check them
           if(tags.size() == 0) {
             hasTags = true;
-
             //else loop through the node's tags and make sure they match
           } else {
             String[] nodeTags = (String[])node.getProperty("tags");
