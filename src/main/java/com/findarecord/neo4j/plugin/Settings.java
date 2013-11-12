@@ -15,9 +15,6 @@ public class Settings {
   public final static String NEO_BOX_LINK = "BOX_LINK";
   public final static String NEO_BOX_LINK_INDEX = "BOX_LINK_INDEX";
   public final static String NEO_BOX_INTERSECT = "BOX_INTERSECT";
-  public final static String NEO_BOX_INTERSECT_INDEX = "BOX_INTERSECT_INDEX";
-  public final static String NEO_COVERAGE = "COVERAGE";
-  public final static String NEO_COVERAGE_CONTAINS = "COVERAGE_CONTAINS";
   public final static String NEO_COLLECTION = "COLLECTION";
 
 }

@@ -1,11 +1,9 @@
 package com.findarecord.neo4j.plugin;
 
 
-import com.vividsolutions.jts.geom.Coordinate;
-import com.vividsolutions.jts.geom.Envelope;
-import com.vividsolutions.jts.geom.Geometry;
-import com.vividsolutions.jts.util.GeometricShapeFactory;
+import com.vividsolutions.jts.geom.*;
 import org.geotools.geojson.geom.GeometryJSON;
+import org.geotools.referencing.GeodeticCalculator;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
@@ -13,6 +11,7 @@ import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 
+import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -40,20 +39,34 @@ public class CollectionQuery {
     return collectionIDs;
   }
 
-  public ArrayList<String> queryDistance(double lat, double lon, double radius, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
+  public ArrayList<String> queryDistance(double lon, double lat, double radius, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
     ArrayList<String> collectionIDs;
 
-    //TODO convert radius properly
 
-    //create a circle
-    GeometricShapeFactory shapeFactory = new GeometricShapeFactory();
-    shapeFactory.setNumPoints(32);
-    shapeFactory.setCentre(new Coordinate(lon, lat));
-    shapeFactory.setSize(radius * 2);
-    Geometry circle = shapeFactory.createCircle();
+    //create calculator to get/set the radius correctly
+    GeodeticCalculator calc = new GeodeticCalculator();
+    calc.setStartingGeographicPoint(lon, lat);
+
+    //create circle
+    int SIDES = 32;
+    double baseAzimuth = 360.0 / SIDES;
+    Coordinate coords[] = new Coordinate[SIDES+1];
+    for( int i = 0; i < SIDES; i++){
+      double azimuth = 180 - (i * baseAzimuth);
+      calc.setDirection(azimuth, radius*1000);
+      Point2D point = calc.getDestinationGeographicPoint();
+      coords[i] = new Coordinate(point.getX(), point.getY());
+    }
+    coords[SIDES] = coords[0];
+    LinearRing ring = new GeometryFactory().createLinearRing( coords );
+    Polygon circle = new GeometryFactory().createPolygon( ring, null );
 
     //perform query
     collectionIDs = queryGeometry(circle, from, to, tags, count, offset);
+
+    Envelope envelope = circle.getEnvelopeInternal();
+
+    //collectionIDs.add(envelope.getMinX()+","+envelope.getMinY()+"::"+envelope.getMaxX()+","+envelope.getMaxY());
 
     return collectionIDs;
   }
@@ -78,11 +91,11 @@ public class CollectionQuery {
       TraversalDescription traversal = new TraversalDescriptionImpl()
       .breadthFirst()
       //only traverse paths in our bounding box
-      .evaluator(getEvaluator(minLon, maxLon, minLat, maxLat, from, to, new HashSet<String>(Arrays.asList(tags))))
+      .evaluator(getEvaluator(minLon, maxLon, minLat, maxLat, from, to, new HashSet<>(Arrays.asList(tags))))
       //only return collections
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
-      List<Node> hits = new ArrayList<Node>();
+      List<Node> hits = new ArrayList<>();
 
       for(Path path : traversal.traverse(start)) {
         hits.add(path.endNode());
@@ -167,47 +180,6 @@ public class CollectionQuery {
           return Evaluation.EXCLUDE_AND_PRUNE;
         }
 
-      }
-    };
-  }
-
-  private Evaluator getCollectionEvaluator(final int from, final int to, final Set<String> tags) {
-    return new Evaluator() {
-      @Override
-      public Evaluation evaluate( final Path path )
-      {
-        if ( path.length() == 0 )
-        {
-          return Evaluation.EXCLUDE_AND_CONTINUE;
-        }
-
-        //if outside our boundary, exclude and prune, else include and continue
-        Node node = path.endNode();
-        Relationship rel = path.lastRelationship();
-        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_COVERAGE_CONTAINS))) {
-          return Evaluation.EXCLUDE_AND_PRUNE;
-          /*
-          boolean hasTags = false;
-          String[] nodeTags = (String[])node.getProperty("tags");
-          for(String nodeTag:nodeTags) {
-            if(tags.contains(nodeTag)) {
-              hasTags = true;
-            }
-          }
-
-          hasTags = false;
-
-          if(from > (int)node.getProperty("to")
-                 || to < (int)node.getProperty("from")
-                 || !hasTags) {
-            return Evaluation.EXCLUDE_AND_PRUNE;
-          } else {
-            return Evaluation.EXCLUDE_AND_PRUNE;
-          }
-          */
-        } else {
-          return Evaluation.INCLUDE_AND_CONTINUE;
-        }
       }
     };
   }

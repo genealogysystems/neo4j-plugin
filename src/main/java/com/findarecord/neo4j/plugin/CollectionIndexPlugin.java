@@ -33,7 +33,7 @@ public class CollectionIndexPlugin extends ServerPlugin {
     //instantiate collections index
     CollectionQuery idx = new CollectionQuery(graphDb);
 
-    return idx.queryDistance(lat,lon,radius, from, to, tags, count, offset);
+    return idx.queryDistance(lon, lat,radius, from, to, tags, count, offset);
   }
 
   @Name( "index" )

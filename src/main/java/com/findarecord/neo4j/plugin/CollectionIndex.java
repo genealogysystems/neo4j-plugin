@@ -52,10 +52,16 @@ public class CollectionIndex {
   }
 
   public String indexGeoJSON(String geoString) {
-
+    String ret = "";
     Geometry geometry = geoJSONtoGeometry(geoString);
 
-    return indexGeometry(geometry);
+    int toIndex = geometry.getNumGeometries();
+
+    for(int i=0; i < toIndex; i++) {
+      ret += indexGeometry(geometry.getGeometryN(i));
+    }
+
+    return ret;
   }
 
   private String indexGeometry(Geometry geometry) {
@@ -108,12 +114,12 @@ public class CollectionIndex {
 
       //if geometryToIndex intersects this boxes, recurse or stop
       if(geometryToIndex.intersects(box.getPolygon())) {
-        ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
+        //ret += "intersect found at depth "+precision+": "+box.toString()+" || ";
         //if we are at our max depth, insert rather than recurse
         if(precision.compareTo(Settings.DEPTH) <= 0) {
           ret += insertBox(box);
         } else {
-          ret += "recursing: new precision is "+precision.divide(Settings.WIDTH)+" || ";
+          //ret += "recursing: new precision is "+precision.divide(Settings.WIDTH)+" || ";
           ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision.divide(Settings.WIDTH));
         }
       }
@@ -195,8 +201,8 @@ public class CollectionIndex {
       //UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
 
       tx.success();
-      return ids.toString();
-      //return "";
+      //return ids.toString();
+      return "";
     }
 
   }
