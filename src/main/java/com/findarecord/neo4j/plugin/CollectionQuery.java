@@ -120,10 +120,18 @@ public class CollectionQuery {
         }
         if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))) {
           boolean hasTags = false;
-          String[] nodeTags = (String[])node.getProperty("tags");
-          for(String nodeTag:nodeTags) {
-            if(tags.contains(nodeTag)) {
-              hasTags = true;
+
+          //if we were passed in no tags, don't check them
+          if(tags.size() == 0) {
+            hasTags = true;
+
+            //else loop through the node's tags and make sure they match
+          } else {
+            String[] nodeTags = (String[])node.getProperty("tags");
+            for(String nodeTag:nodeTags) {
+              if(tags.contains(nodeTag)) {
+                hasTags = true;
+              }
             }
           }
 
