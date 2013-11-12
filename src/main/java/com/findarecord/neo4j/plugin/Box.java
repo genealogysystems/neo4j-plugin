@@ -60,16 +60,15 @@ public class Box {
     String latString = format(lat,numDecimals);
     String lonString = format(lon,numDecimals);
 
-    String id = latString.substring(0,3)+","+lonString.substring(0,3);
+    //+123.45678 > +12 - +123 --> +123.4 --> +123.45 --> ...
 
-    //add first id
-    ids.add(id);
+    //add first 2 until decimal
+    ids.add(lonString.substring(0,3)+","+latString.substring(0,3));
+    ids.add(lonString.substring(0,4)+","+latString.substring(0,4));
 
-    for (int i = 3; i < latString.length(); i++){
-      id += ":"+lonString.charAt(i)+","+latString.charAt(i);
-      ids.add(id);
+    for (int i = 6; i <= latString.length(); i++){
+      ids.add(lonString.substring(0,i)+","+latString.substring(0,i));
     }
-
 
     return ids;
   }
@@ -106,7 +105,7 @@ public class Box {
       part2 = StringUtils.rightPad("", numDecimals, '0');
     }
 
-    return part1+part2;
+    return part1+"."+part2;
   }
 
 }

@@ -176,6 +176,8 @@ public class CollectionIndex {
         }
       };
 
+      BigDecimal currentPrecision = new BigDecimal(1);
+
       for(String id: ids) {
 
         lastId = id;
@@ -186,14 +188,21 @@ public class CollectionIndex {
         //create relationship
         UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
         if(rel.wasCreated()) {
-          rel.entity().setProperty("minLat", box.getLat().doubleValue());
-          rel.entity().setProperty("maxLat", box.getLat().add(box.getPrecision()).doubleValue());
-          rel.entity().setProperty("minLon", box.getLon().doubleValue());
-          rel.entity().setProperty("maxLon", box.getLon().add(box.getPrecision()).doubleValue());
+
+          String[] idArr = id.split(",");
+
+          BigDecimal lon = new BigDecimal(idArr[0]);
+          BigDecimal lat = new BigDecimal(idArr[1]);
+
+          rel.entity().setProperty("minLon", lon.doubleValue());
+          rel.entity().setProperty("maxLon", lon.add(currentPrecision).doubleValue());
+          rel.entity().setProperty("minLat", lat.doubleValue());
+          rel.entity().setProperty("maxLat", lat.add(currentPrecision).doubleValue());
         }
 
         //point fromNode to toNode
         fromNode = toNode;
+        currentPrecision = currentPrecision.divide(Settings.WIDTH);
       }
 
       //create relationship to collection Node
