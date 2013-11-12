@@ -20,10 +20,16 @@ public class Box {
 
   private Polygon polygon;
 
-  public Box(BigDecimal lon, BigDecimal lat, BigDecimal precision) {
+  private ArrayList<String> ids;
+
+  public Box(BigDecimal lon, BigDecimal lat, BigDecimal precision, ArrayList<String> ids) {
     this.lon = lon;
     this.lat = lat;
     this.precision = precision;
+    this.ids = (ArrayList<String>)ids.clone();
+
+    //create polygon
+
     Coordinate[] coords = new Coordinate[5];
     coords[0] = new Coordinate(lon.doubleValue(),lat.doubleValue());
     coords[1] = new Coordinate(lon.add(precision).doubleValue(),lat.doubleValue());
@@ -32,6 +38,17 @@ public class Box {
     coords[4] = new Coordinate(lon.doubleValue(),lat.doubleValue());
     LinearRing ring = new GeometryFactory().createLinearRing(coords);
     polygon = new GeometryFactory().createPolygon(ring,null);
+
+
+    //add id
+    String lonId = lon.toString();
+    if(lon.doubleValue() >= 0) lonId = "+"+lonId;
+
+    String latId = lat.toString();
+    if(lat.doubleValue() >= 0) latId = "+"+latId;
+
+    this.ids.add(lonId+","+latId);
+
   }
 
   public String toString() {
@@ -54,6 +71,20 @@ public class Box {
     return precision;
   }
 
+  public ArrayList<String> getIds() {
+    return ids;
+  }
+
+  public String getNodeId() {
+    String ret = "";
+
+    for(String id:ids) {
+      ret += ":"+id;
+    }
+    return ret;
+  }
+
+  /*
   public ArrayList<String> getIds(int numDecimals) {
     ArrayList<String> ids = new ArrayList<>();
 
@@ -107,5 +138,5 @@ public class Box {
 
     return part1+"."+part2;
   }
-
+  */
 }

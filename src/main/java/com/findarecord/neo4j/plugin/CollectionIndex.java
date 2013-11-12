@@ -88,17 +88,18 @@ public class CollectionIndex {
       //if geometryToIndex intersects this boxes, recurse
       if(geometryToIndex.intersects(box.getPolygon())) {
         //ret += "intersect found:"+box.toString()+" || ";
-        ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), new BigDecimal(1));
+        //ret += "   "+box.getNodeId();
+        ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), new BigDecimal(1), box.getIds());
       }
     }
     return ret;
   }
 
-  private String indexNLevel(Geometry geometryToIndex, BigDecimal lon, BigDecimal lat, BigDecimal precision) {
+  private String indexNLevel(Geometry geometryToIndex, BigDecimal lon, BigDecimal lat, BigDecimal precision, ArrayList<String> ids) {
     String ret = "";
 
     //get boxes for this level
-    ArrayList<Box> boxes = getNLevelBoxes(lon, lat, precision);
+    ArrayList<Box> boxes = getNLevelBoxes(lon, lat, precision, ids);
 
     //ret += "level "+lon+" "+lat+" "+precision+" - boxes="+boxes.size()+" || ";
 
@@ -120,7 +121,7 @@ public class CollectionIndex {
           ret += insertBox(box);
         } else {
           //ret += "recursing: new precision is "+precision.divide(Settings.WIDTH)+" || ";
-          ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision.divide(Settings.WIDTH));
+          ret += indexNLevel(geometryToIndex, box.getLon(), box.getLat(), precision.divide(Settings.WIDTH), box.getIds());
         }
       }
     }
@@ -138,21 +139,21 @@ public class CollectionIndex {
 
     for(int lon=fromLon;lon<toLon; lon = lon+precision) {
       for(int lat=fromLat;lat<toLat; lat = lat+precision) {
-        boxes.add(new Box(new BigDecimal(lon),new BigDecimal(lat), new BigDecimal(precision)));
+        boxes.add(new Box(new BigDecimal(lon),new BigDecimal(lat), new BigDecimal(precision), new ArrayList<String>()));
       }
     }
 
     return boxes;
   }
 
-  private ArrayList<Box> getNLevelBoxes(BigDecimal fromLon, BigDecimal fromLat, BigDecimal precision) {
+  private ArrayList<Box> getNLevelBoxes(BigDecimal fromLon, BigDecimal fromLat, BigDecimal precision,  ArrayList<String> ids) {
     ArrayList<Box> boxes = new ArrayList<>();
     BigDecimal toLat = fromLat.add(precision.multiply(Settings.WIDTH));
     BigDecimal toLon = fromLon.add(precision.multiply(Settings.WIDTH));
 
     for(BigDecimal lon=fromLon;lon.compareTo(toLon) < 0; lon = lon.add(precision)) {
       for(BigDecimal lat=fromLat;lat.compareTo(toLat) < 0; lat = lat.add(precision)) {
-        boxes.add(new Box(lon,lat, precision));
+        boxes.add(new Box(lon,lat, precision, ids));
       }
     }
 
@@ -165,7 +166,7 @@ public class CollectionIndex {
       //get root node
       Node fromNode = graphDb.getNodeById(0);
       String lastId = null;
-      ArrayList<String> ids = box.getIds(Settings.DECIMALS);
+      ArrayList<String> ids = box.getIds();
 
       UniqueFactory<Node> nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_BOX )
       {
@@ -176,14 +177,18 @@ public class CollectionIndex {
         }
       };
 
-      BigDecimal currentPrecision = new BigDecimal(1);
+      BigDecimal currentPrecision = new BigDecimal(10);
+
+      String idString = "";
 
       for(String id: ids) {
+
+        idString += ":"+id;
 
         lastId = id;
 
         //create new node
-        Node toNode = nodeFactory.getOrCreate( "id", id );
+        Node toNode = nodeFactory.getOrCreate( "id", idString );
 
         //create relationship
         UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
