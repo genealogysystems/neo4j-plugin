@@ -37,7 +37,7 @@ public class CollectionIndex {
       collectionNode.setProperty("from",from);
       collectionNode.setProperty("to",to);
       collectionNode.setProperty("tags",tags);
-      //collectionNode.addLabel(DynamicLabel.label( "Collection" ));
+      collectionNode.addLabel(DynamicLabel.label( "Collection" ));
 
       //remove all old relationships
       for(Relationship rel: collectionNode.getRelationships()) {

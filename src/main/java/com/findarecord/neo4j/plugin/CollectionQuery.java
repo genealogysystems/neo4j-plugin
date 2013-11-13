@@ -90,6 +90,8 @@ public class CollectionQuery {
       start = graphDb.getNodeById(0);
       TraversalDescription traversal = new TraversalDescriptionImpl()
       .breadthFirst()
+      .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK),Direction.INCOMING)
+      .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT),Direction.OUTGOING)
       //only traverse paths in our bounding box
       .evaluator(getEvaluator(minLon, maxLon, minLat, maxLat, from, to, new HashSet<>(Arrays.asList(tags))))
       //only return collections
@@ -150,7 +152,8 @@ public class CollectionQuery {
           ) {
           includeAndContinue = false;
         }
-        if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))) {
+        //if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))) {
+        if(node.hasLabel(DynamicLabel.label( "Collection" ))) {
           boolean hasTags = false;
 
           //if we were passed in no tags, don't check them
