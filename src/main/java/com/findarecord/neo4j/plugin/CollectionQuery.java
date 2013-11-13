@@ -103,16 +103,7 @@ public class CollectionQuery {
         hits.add(path.endNode());
       }
 
-      Collections.sort(hits, new Comparator<Node>() {
-        @Override
-        public int compare(Node node, Node node2) {
-          if(node.getId()>node2.getId()) {
-            return -1;
-          } else {
-            return 1;
-          }
-        }
-      });
+      Collections.sort(hits, getComparator(from, to));
 
       int i = 0;
       int end = offset+count;
@@ -126,6 +117,55 @@ public class CollectionQuery {
     }
 
     return collectionIDs;
+  }
+
+  private Comparator<Node> getComparator(final Integer from, final Integer to) {
+    return new Comparator<Node>() {
+      @Override
+      public int compare(Node node1, Node node2) {
+
+        //compare from and to dates
+        int node1Size = getDateRange(node1, from, to);
+        int node2Size = getDateRange(node2, from, to);
+
+        //sort sorts in ascending order
+        //we want the larger of the 2 to be sorted first
+        //so we return -1 if node1 is larger than node2
+        if(node1Size > node2Size) {
+          return -1;
+        }
+        if(node1Size < node2Size) {
+           return 1;
+        }
+
+        if(node1.getId()>node2.getId()) {
+          return -1;
+        } else {
+          return 1;
+        }
+      }
+    };
+  }
+
+  private int getDateRange(Node node, Integer from, Integer to) {
+    Integer nodeFrom = (Integer)node.getProperty("from");
+    Integer nodeTo = (Integer)node.getProperty("to");
+    int nodeSize;
+    if(nodeFrom < from && nodeTo > to) {
+      nodeSize = from - to;
+      //if node from overlaps
+    } else if(nodeFrom < from) {
+      nodeSize = nodeTo - from;
+      //if node to overlaps
+    }else if(nodeTo > to) {
+      nodeSize = to - nodeFrom;
+      //if node is encompassed by our range
+    } else {
+      nodeSize = nodeTo - nodeFrom;
+    }
+
+
+    return nodeSize;
   }
 
   private Evaluator getEvaluator(final double minLon, final double maxLon, final double minLat, final double maxLat,final int from, final int to, final Set<String> tags) {
