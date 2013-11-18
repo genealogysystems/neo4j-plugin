@@ -107,11 +107,23 @@ public class EntryQuery {
 
       int i = 0;
       int end = offset+count;
-      for(Node col: hits) {
-        if(i >= offset && i < end) {
-          entryIDs.add((String) col.getProperty("id"));
+      HashSet<String> collectionIds = new HashSet<>();
+      String collectionId;
+      //loop through our results
+      for(Node entry: hits) {
+
+        //make sure we haven't seen this collection before
+        collectionId = (String) entry.getProperty("collection_id");
+        if(!collectionIds.contains(collectionId)) {
+          //add collection we have seen to our hashset
+          collectionIds.add(collectionId);
+
+          //if we are in range of our query, add to result
+          if(i >= offset && i < end) {
+            entryIDs.add((String) entry.getProperty("id"));
+          }
+          i++;
         }
-        i++;
       }
       tx.success();
     }
