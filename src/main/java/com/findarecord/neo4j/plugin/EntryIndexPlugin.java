@@ -6,7 +6,7 @@ import org.neo4j.server.plugins.*;
 import java.util.ArrayList;
 
 @Description( "Find-A-Record Collections Index" )
-public class CollectionIndexPlugin extends ServerPlugin {
+public class EntryIndexPlugin extends ServerPlugin {
 
   @Name( "query_distance" )
   @Description( "Perform a Collection query" )
@@ -31,19 +31,21 @@ public class CollectionIndexPlugin extends ServerPlugin {
     ArrayList<String> result = new ArrayList<>();
 
     //instantiate collections index
-    CollectionQuery idx = new CollectionQuery(graphDb);
+    EntryQuery idx = new EntryQuery(graphDb);
 
     return idx.queryDistance(lon, lat,radius, from, to, tags, count, offset);
   }
 
   @Name( "index" )
-  @Description( "Index a Collection" )
+  @Description( "Index an Entry" )
   @PluginTarget( GraphDatabaseService.class )
   public Iterable<String> index( @Source GraphDatabaseService graphDb,
                                  @Description( "id" )
                                  @Parameter( name = "id" ) String entryId,
                                  @Description( "repo_id" )
                                  @Parameter( name = "repo_id" ) String repoId,
+                                 @Description( "collection_id" )
+                                 @Parameter( name = "collection_id" ) String collectionId,
                                  @Description( "from" )
                                  @Parameter( name = "from" ) Integer from,
                                  @Description( "to" )
@@ -55,17 +57,30 @@ public class CollectionIndexPlugin extends ServerPlugin {
     //create result string
     ArrayList<String> result = new ArrayList<>();
 
-    //instantiate collections index
-    CollectionIndex idx = new CollectionIndex(graphDb);
+    //instantiate entry index
+    EntryIndex idx = new EntryIndex(graphDb);
 
-    //index collection
-    result.add(idx.indexCollection(entryId, from, to, tags));
+    //index entry
+    result.add(idx.indexEntry(entryId, collectionId, from, to, tags, geojson));
 
-    //index the passed in geojson
-    String res = idx.indexGeoJSON(geojson);
+    //return
+    return result;
+  }
 
-    //spit out result
-    result.add(res+"");
+  @Name( "delete" )
+  @Description( "Delete an Entry" )
+  @PluginTarget( GraphDatabaseService.class )
+  public Iterable<String> delete( @Source GraphDatabaseService graphDb,
+                                 @Description( "id" )
+                                 @Parameter( name = "id" ) String entryId) {
+    //create result string
+    ArrayList<String> result = new ArrayList<>();
+
+    //instantiate entry index
+    EntryIndex idx = new EntryIndex(graphDb);
+
+    //delete entry
+    idx.deleteEntry(entryId);
 
     //return
     return result;

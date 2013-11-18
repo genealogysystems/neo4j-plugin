@@ -5,7 +5,7 @@ import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
 
-public class CollectionIndexTest
+public class EntryIndexTest
     extends TestCase
 {
     /**
@@ -13,7 +13,7 @@ public class CollectionIndexTest
      *
      * @param testName name of the test case
      */
-    public CollectionIndexTest(String testName)
+    public EntryIndexTest(String testName)
     {
         super( testName );
     }
@@ -23,7 +23,7 @@ public class CollectionIndexTest
      */
     public static Test suite()
     {
-        return new TestSuite( CollectionIndexTest.class );
+        return new TestSuite( EntryIndexTest.class );
     }
 
     /**

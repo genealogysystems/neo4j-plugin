@@ -13,19 +13,19 @@ import java.util.ArrayList;
 import java.util.Map;
 
 
-public class CollectionIndex {
+public class EntryIndex {
 
   private GraphDatabaseService graphDb;
 
-  private Node collectionNode;
+  private Node entryNode;
 
-  public CollectionIndex(GraphDatabaseService graphDb) {
+  public EntryIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
   }
 
-  public String indexCollection(String collectionId, Integer from, Integer to, String[] tags) {
+  public void deleteEntry(String entryId) {
     try ( Transaction tx = graphDb.beginTx() ) {
-      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_COLLECTION )
+      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ENTRY)
       {
         @Override
         protected void initialize( Node created, Map<String, Object> properties )
@@ -33,33 +33,63 @@ public class CollectionIndex {
           created.setProperty( "id", properties.get( "id" ) );
         }
       };
-      collectionNode = factory.getOrCreate("id", collectionId);
-      collectionNode.setProperty("from",from);
-      collectionNode.setProperty("to",to);
-      collectionNode.setProperty("tags",tags);
-      collectionNode.addLabel(DynamicLabel.label( "Collection" ));
-
+      entryNode = factory.getOrCreate("id", entryId);
       //remove all old relationships
-      for(Relationship rel: collectionNode.getRelationships()) {
+      for(Relationship rel: entryNode.getRelationships()) {
         rel.delete();
       }
+      entryNode.delete();
+      tx.success();
+    }
+  }
+
+  public String indexEntry(String entryId, String collectionId, Integer from, Integer to, String[] tags, String geoString) {
+    String ret = "";
+    try ( Transaction tx = graphDb.beginTx() ) {
+      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ENTRY)
+      {
+        @Override
+        protected void initialize( Node created, Map<String, Object> properties )
+        {
+          created.setProperty( "id", properties.get( "id" ) );
+        }
+      };
+      entryNode = factory.getOrCreate("id", entryId);
+      entryNode.setProperty("collection_id", collectionId);
+      entryNode.setProperty("from", from);
+      entryNode.setProperty("to", to);
+      entryNode.setProperty("tags", tags);
+      entryNode.addLabel(DynamicLabel.label("Entry"));
+
+      //remove all old relationships
+      for(Relationship rel: entryNode.getRelationships()) {
+        rel.delete();
+      }
+      ret = indexGeoJSON(geoString);
 
       tx.success();
     }
 
-
-    return "";
+    return ret;
   }
 
   public String indexGeoJSON(String geoString) {
     String ret = "";
     Geometry geometry = geoJSONtoGeometry(geoString);
-
+    Geometry nGeometry;
     int toIndex = geometry.getNumGeometries();
+    double[] lons = new double[toIndex];
+    double[] lats = new double[toIndex];
 
     for(int i=0; i < toIndex; i++) {
-      ret += indexGeometry(geometry.getGeometryN(i));
+      nGeometry = geometry.getGeometryN(i);
+      lons[i] = nGeometry.getCentroid().getX();
+      lats[i] = nGeometry.getCentroid().getY();
+      ret += indexGeometry(nGeometry);
     }
+
+    entryNode.setProperty("lons",lons);
+    entryNode.setProperty("lats",lats);
 
     return ret;
   }
@@ -162,62 +192,59 @@ public class CollectionIndex {
 
   private String insertBox(Box box) {
 
-    try ( Transaction tx = graphDb.beginTx() ) {
-      //get root node
-      Node fromNode = graphDb.getNodeById(0);
-      String lastId = null;
-      ArrayList<String> ids = box.getIds();
+    //get root node
+    Node fromNode = graphDb.getNodeById(0);
+    String lastId = null;
+    ArrayList<String> ids = box.getIds();
 
-      UniqueFactory<Node> nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_BOX )
+    UniqueFactory<Node> nodeFactory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_BOX )
+    {
+      @Override
+      protected void initialize( Node created, Map<String, Object> properties )
       {
-        @Override
-        protected void initialize( Node created, Map<String, Object> properties )
-        {
-          created.setProperty( "id", properties.get( "id" ) );
-        }
-      };
+        created.setProperty( "id", properties.get( "id" ) );
+      }
+    };
 
-      BigDecimal currentPrecision = new BigDecimal(10);
+    BigDecimal currentPrecision = new BigDecimal(10);
 
-      String idString = "";
+    String idString = "";
 
-      for(String id: ids) {
+    for(String id: ids) {
 
-        idString += ":"+id;
+      idString += ":"+id;
 
-        lastId = id;
+      lastId = id;
 
-        //create new node
-        Node toNode = nodeFactory.getOrCreate( "id", idString );
+      //create new node
+      Node toNode = nodeFactory.getOrCreate( "id", idString );
 
-        //create relationship
-        UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
-        if(rel.wasCreated()) {
+      //create relationship
+      UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);
+      if(rel.wasCreated()) {
 
-          String[] idArr = id.split(",");
+        String[] idArr = id.split(",");
 
-          BigDecimal lon = new BigDecimal(idArr[0]);
-          BigDecimal lat = new BigDecimal(idArr[1]);
+        BigDecimal lon = new BigDecimal(idArr[0]);
+        BigDecimal lat = new BigDecimal(idArr[1]);
 
-          rel.entity().setProperty("minLon", lon.doubleValue());
-          rel.entity().setProperty("maxLon", lon.add(currentPrecision).doubleValue());
-          rel.entity().setProperty("minLat", lat.doubleValue());
-          rel.entity().setProperty("maxLat", lat.add(currentPrecision).doubleValue());
-        }
-
-        //point fromNode to toNode
-        fromNode = toNode;
-        currentPrecision = currentPrecision.divide(Settings.WIDTH);
+        rel.entity().setProperty("minLon", lon.doubleValue());
+        rel.entity().setProperty("maxLon", lon.add(currentPrecision).doubleValue());
+        rel.entity().setProperty("minLat", lat.doubleValue());
+        rel.entity().setProperty("maxLat", lat.add(currentPrecision).doubleValue());
       }
 
-      //create relationship to collection Node
-      fromNode.createRelationshipTo(collectionNode, DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT));
-      //UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, collectionNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
-
-      tx.success();
-      //return ids.toString();
-      return "";
+      //point fromNode to toNode
+      fromNode = toNode;
+      currentPrecision = currentPrecision.divide(Settings.WIDTH);
     }
+
+    //create relationship to entry Node
+    fromNode.createRelationshipTo(entryNode, DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT));
+    //UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, entryNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
+
+    //return ids.toString();
+    return "";
 
   }
 
@@ -246,5 +273,6 @@ public class CollectionIndex {
 
     return factory.getOrCreateWithOutcome(indexableKey, indexableValue);
   }
+
 
 }

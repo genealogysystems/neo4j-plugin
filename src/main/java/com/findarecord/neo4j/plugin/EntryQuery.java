@@ -17,30 +17,30 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.*;
 
-public class CollectionQuery {
+public class EntryQuery {
 
   private GraphDatabaseService graphDb;
 
-  public CollectionQuery(GraphDatabaseService graphDb) {
+  public EntryQuery(GraphDatabaseService graphDb) {
      this.graphDb = graphDb;
   }
 
   public ArrayList<String> queryPolygon(String geoString, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
-    ArrayList<String> collectionIDs = new ArrayList<>();
+    ArrayList<String> entryIDs = new ArrayList<>();
 
     //get geometry
     Geometry geometry = geoJSONtoGeometry(geoString);
 
     //if we have a valid geometry, query it
     if(geometry != null) {
-       collectionIDs = queryGeometry(geometry, from, to, tags, count, offset);
+       entryIDs = queryGeometry(geometry, from, to, tags, count, offset);
     }
 
-    return collectionIDs;
+    return entryIDs;
   }
 
   public ArrayList<String> queryDistance(double lon, double lat, double radius, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
-    ArrayList<String> collectionIDs;
+    ArrayList<String> entryIDs;
 
 
     //create calculator to get/set the radius correctly
@@ -58,21 +58,21 @@ public class CollectionQuery {
       coords[i] = new Coordinate(point.getX(), point.getY());
     }
     coords[SIDES] = coords[0];
-    LinearRing ring = new GeometryFactory().createLinearRing( coords );
+    LinearRing ring = new GeometryFactory().createLinearRing(coords);
     Polygon circle = new GeometryFactory().createPolygon( ring, null );
 
     //perform query
-    collectionIDs = queryGeometry(circle, from, to, tags, count, offset);
+    entryIDs = queryGeometry(circle, from, to, tags, count, offset);
 
     Envelope envelope = circle.getEnvelopeInternal();
 
-    //collectionIDs.add(envelope.getMinX()+","+envelope.getMinY()+"::"+envelope.getMaxX()+","+envelope.getMaxY());
+    //entryIDs.add(envelope.getMinX()+","+envelope.getMinY()+"::"+envelope.getMaxX()+","+envelope.getMaxY());
 
-    return collectionIDs;
+    return entryIDs;
   }
 
   private ArrayList<String> queryGeometry(Geometry geometry, Integer from, Integer to, String[] tags, Integer count, Integer offset) {
-    ArrayList<String> collectionIDs = new ArrayList<>();
+    ArrayList<String> entryIDs = new ArrayList<>();
 
     //create bounding envelope
     Envelope envelope = geometry.getEnvelopeInternal();
@@ -94,7 +94,7 @@ public class CollectionQuery {
       .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT),Direction.OUTGOING)
       //only traverse paths in our bounding box
       .evaluator(getEvaluator(minLon, maxLon, minLat, maxLat, from, to, new HashSet<>(Arrays.asList(tags))))
-      //only return collections
+      //only return entries
       .evaluator(Evaluators.includeWhereLastRelationshipTypeIs(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT)));
 
       List<Node> hits = new ArrayList<>();
@@ -109,14 +109,14 @@ public class CollectionQuery {
       int end = offset+count;
       for(Node col: hits) {
         if(i >= offset && i < end) {
-          collectionIDs.add((String)col.getProperty("id"));
+          entryIDs.add((String) col.getProperty("id"));
         }
         i++;
       }
       tx.success();
     }
 
-    return collectionIDs;
+    return entryIDs;
   }
 
   private Comparator<Node> getComparator(final Integer from, final Integer to) {
@@ -193,7 +193,7 @@ public class CollectionQuery {
           includeAndContinue = false;
         }
         //if(rel.isType(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT))) {
-        if(node.hasLabel(DynamicLabel.label( "Collection" ))) {
+        if(node.hasLabel(DynamicLabel.label( "Entry" ))) {
           boolean hasTags = false;
 
           //if we were passed in no tags, don't check them
