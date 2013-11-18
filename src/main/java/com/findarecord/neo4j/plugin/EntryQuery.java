@@ -103,7 +103,7 @@ public class EntryQuery {
         hits.add(path.endNode());
       }
 
-      Collections.sort(hits, getComparator(from, to));
+      Collections.sort(hits, getComparator(from, to, geometry.getCentroid()));
 
       int i = 0;
       int end = offset+count;
@@ -131,10 +131,21 @@ public class EntryQuery {
     return entryIDs;
   }
 
-  private Comparator<Node> getComparator(final Integer from, final Integer to) {
+  private Comparator<Node> getComparator(final Integer from, final Integer to, final Geometry centroid) {
     return new Comparator<Node>() {
       @Override
       public int compare(Node node1, Node node2) {
+
+        //compare distances
+        double node1Distance = getDistance(node1,centroid);
+        double node2Distance = getDistance(node2,centroid);
+
+        if(node1Distance < node2Distance) {
+          return -1;
+        }
+        if(node1Distance > node2Distance) {
+          return 1;
+        }
 
         //compare from and to dates
         int node1Size = getDateRange(node1, from, to);
@@ -157,6 +168,26 @@ public class EntryQuery {
         }
       }
     };
+  }
+
+  public double getDistance(Node node, Geometry centroid) {
+    double distance = Double.MAX_VALUE;
+
+    //get array of lats and lons
+    double[] lons = (double[]) node.getProperty("lons");
+    double[] lats = (double[]) node.getProperty("lats");
+    double temp;
+
+    //loop through and set the lowest distance
+    for(int i=0;i<lats.length;i++) {
+      Coordinate coord = new Coordinate(lons[i], lats[i]);
+      temp = centroid.distance(new GeometryFactory().createPoint(coord));
+      if(temp < distance) {
+        distance = temp;
+      }
+    }
+
+    return distance;
   }
 
   private int getDateRange(Node node, Integer from, Integer to) {

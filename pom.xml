@@ -9,7 +9,7 @@
   <groupId>com.findarecord.neo4j.plugin</groupId>
   <artifactId>neo4j-plugin</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.0</version>
+  <version>0.4.0</version>
   <name>neo4j-plugin</name>
   <url>http://maven.apache.org</url>
   <dependencies>
