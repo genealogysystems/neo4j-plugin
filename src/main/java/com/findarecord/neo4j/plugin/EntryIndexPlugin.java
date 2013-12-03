@@ -68,6 +68,42 @@ public class EntryIndexPlugin extends ServerPlugin {
     return result;
   }
 
+  @Name( "index_batch" )
+  @Description( "Index an Entry batch mode" )
+  @PluginTarget( GraphDatabaseService.class )
+  public Iterable<String> indexBatch( @Source GraphDatabaseService graphDb,
+                                 @Description( "id" )
+                                 @Parameter( name = "id" ) String[] entryId,
+                                 @Description( "repo_id" )
+                                 @Parameter( name = "repo_id" ) String[] repoId,
+                                 @Description( "collection_id" )
+                                 @Parameter( name = "collection_id" ) String[] collectionId,
+                                 @Description( "from" )
+                                 @Parameter( name = "from" ) Integer[] from,
+                                 @Description( "to" )
+                                 @Parameter( name = "to" ) Integer[] to,
+                                 @Description( "tags" )
+                                 @Parameter( name = "tags" ) String[] tags,
+                                 @Description( "geojson" )
+                                 @Parameter( name = "geojson" ) String[] geojson) {
+    //create result string
+    ArrayList<String> result = new ArrayList<>();
+
+    for(int i=0;i<entryId.length;i++) {
+
+      //instantiate entry index
+      EntryIndex idx = new EntryIndex(graphDb);
+
+      String[] tagArr = tags[i].split(",");
+
+      //index entry
+      result.add(idx.indexEntry(entryId[i], collectionId[i], from[i], to[i], tagArr, geojson[i]));
+
+    }
+    //return
+    return result;
+  }
+
   @Name( "delete" )
   @Description( "Delete an Entry" )
   @PluginTarget( GraphDatabaseService.class )
@@ -83,6 +119,26 @@ public class EntryIndexPlugin extends ServerPlugin {
     //delete entry
     idx.deleteEntry(entryId);
 
+    //return
+    return result;
+  }
+
+  @Name( "delete_batch" )
+  @Description( "Delete an Entry batch mode" )
+  @PluginTarget( GraphDatabaseService.class )
+  public Iterable<String> deleteBatch( @Source GraphDatabaseService graphDb,
+                                  @Description( "id" )
+                                  @Parameter( name = "id" ) String[] entryId) {
+    //create result string
+    ArrayList<String> result = new ArrayList<>();
+
+    for(int i=0;i<entryId.length;i++) {
+      //instantiate entry index
+      EntryIndex idx = new EntryIndex(graphDb);
+
+      //delete entry
+      idx.deleteEntry(entryId[i]);
+    }
     //return
     return result;
   }
