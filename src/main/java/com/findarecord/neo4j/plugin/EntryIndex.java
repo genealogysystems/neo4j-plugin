@@ -193,7 +193,16 @@ public class EntryIndex {
   private String insertBox(Box box) {
 
     //get root node
-    Node fromNode = graphDb.getNodeById(0);
+    UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ROOT)
+    {
+      @Override
+      protected void initialize( Node created, Map<String, Object> properties )
+      {
+        created.setProperty( "id", properties.get( "id" ) );
+      }
+    };
+    Node fromNode = factory.getOrCreate("id", 0);
+    //Node fromNode = graphDb.getNodeById(0);
     String lastId = null;
     ArrayList<String> ids = box.getIds();
 

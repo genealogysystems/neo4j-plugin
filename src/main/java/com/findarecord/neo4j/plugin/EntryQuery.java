@@ -5,11 +5,11 @@ import com.vividsolutions.jts.geom.*;
 import org.geotools.geojson.geom.GeometryJSON;
 import org.geotools.referencing.GeodeticCalculator;
 import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.index.UniqueFactory;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
 import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.TraversalDescription;
-import org.neo4j.kernel.impl.traversal.TraversalDescriptionImpl;
 
 import java.awt.geom.Point2D;
 import java.io.IOException;
@@ -86,9 +86,17 @@ public class EntryQuery {
     //perform query
     try(Transaction tx = graphDb.beginTx()) {
 
-      Node start;
-      start = graphDb.getNodeById(0);
-      TraversalDescription traversal = new TraversalDescriptionImpl()
+      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ROOT)
+      {
+        @Override
+        protected void initialize( Node created, Map<String, Object> properties )
+        {
+          created.setProperty( "id", properties.get( "id" ) );
+        }
+      };
+      Node start = factory.getOrCreate("id", 0);
+      //Node start = graphDb.getNodeById(0);
+      TraversalDescription traversal = graphDb.traversalDescription()
       .breadthFirst()
       .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK),Direction.INCOMING)
       .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT),Direction.OUTGOING)
