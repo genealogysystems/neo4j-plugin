@@ -10,6 +10,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Map;
 
 
@@ -19,8 +20,11 @@ public class EntryIndex {
 
   private Node entryNode;
 
+  private HashSet<String> incrementedNodes;
+
   public EntryIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
+    this.incrementedNodes = new HashSet<>();
   }
 
   public void deleteEntry(String entryId) {
@@ -212,6 +216,7 @@ public class EntryIndex {
       protected void initialize( Node created, Map<String, Object> properties )
       {
         created.setProperty( "id", properties.get( "id" ) );
+        created.setProperty( "count", new Integer(0) );
       }
     };
 
@@ -227,6 +232,13 @@ public class EntryIndex {
 
       //create new node
       Node toNode = nodeFactory.getOrCreate( "id", idString );
+
+      //increment count if we haven't seen this node before
+      if(!incrementedNodes.contains(idString)) {
+        Integer count = (Integer) toNode.getProperty("count");
+        toNode.setProperty("count", count+1);
+        incrementedNodes.add(idString);
+      }
 
       //create relationship
       UniqueFactory.UniqueEntity<Relationship> rel = createRelationship(fromNode, toNode, "id", id, Settings.NEO_BOX_LINK_INDEX, Settings.NEO_BOX_LINK);

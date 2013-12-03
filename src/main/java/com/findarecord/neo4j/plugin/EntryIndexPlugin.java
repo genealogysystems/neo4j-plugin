@@ -2,6 +2,7 @@ package com.findarecord.neo4j.plugin;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.server.plugins.*;
+import org.neo4j.server.rest.repr.Representation;
 
 import java.util.ArrayList;
 
@@ -84,6 +85,23 @@ public class EntryIndexPlugin extends ServerPlugin {
 
     //return
     return result;
+  }
+
+  @Name( "heatmap" )
+  @Description( "query the heatmap" )
+  @PluginTarget( GraphDatabaseService.class )
+  public Representation heatmap( @Source GraphDatabaseService graphDb,
+                                   @Description( "geojson" )
+                                   @Parameter( name = "geojson" ) String geojson,
+                                   @Description( "depth" )
+                                   @Parameter( name = "depth" ) Integer depth) {
+
+    //instantiate heatmap index
+    HeatmapQuery idx = new HeatmapQuery(graphDb);
+
+    //return query
+    return idx.queryPolygon(geojson,depth);
+
   }
 
 }
