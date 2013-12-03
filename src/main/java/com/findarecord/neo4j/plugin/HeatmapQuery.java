@@ -105,12 +105,13 @@ public class HeatmapQuery {
         double lon = (hitMinLon+hitMaxLon)/2;
         double lat = (hitMinLat+hitMaxLat)/2;
         int count = (int) path.endNode().getProperty("count");
+        long lastUpdated = (long) path.endNode().getProperty("lastUpdated");
 
         ArrayList<Representation> tmp = new ArrayList<>();
-        tmp.add(ValueRepresentation.number(path.endNode().getId()));
         tmp.add(ValueRepresentation.number(lon));
         tmp.add(ValueRepresentation.number(lat));
         tmp.add(ValueRepresentation.number(count));
+        tmp.add(ValueRepresentation.number(lastUpdated));
         ret.add(new ListRepresentation(RepresentationType.DOUBLE,tmp));
       }
 

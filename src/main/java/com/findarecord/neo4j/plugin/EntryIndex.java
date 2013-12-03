@@ -204,6 +204,8 @@ public class EntryIndex {
       {
         created.setProperty( "id", properties.get( "id" ) );
         created.setProperty( "count", new Integer(0) );
+        created.setProperty( "lastUpdated", new Long(0) );
+
       }
     };
     Node fromNode = factory.getOrCreate("id", 0);
@@ -211,6 +213,7 @@ public class EntryIndex {
     if(!incrementedNodes.contains("0")) {
       Integer count = (Integer) fromNode.getProperty("count");
       fromNode.setProperty("count", count+1);
+      fromNode.setProperty("lastUpdated", System.currentTimeMillis() / 1000l);
       incrementedNodes.add("0");
     }
 
@@ -225,6 +228,7 @@ public class EntryIndex {
       {
         created.setProperty( "id", properties.get( "id" ) );
         created.setProperty( "count", new Integer(0) );
+        created.setProperty( "lastUpdated", new Long(0) );
       }
     };
 
@@ -245,6 +249,7 @@ public class EntryIndex {
       if(!incrementedNodes.contains(idString)) {
         Integer count = (Integer) toNode.getProperty("count");
         toNode.setProperty("count", count+1);
+        toNode.setProperty("lastUpdated", System.currentTimeMillis() / 1000l);
         incrementedNodes.add(idString);
       }
 
