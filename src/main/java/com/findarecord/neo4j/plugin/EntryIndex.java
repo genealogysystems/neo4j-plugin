@@ -203,9 +203,17 @@ public class EntryIndex {
       protected void initialize( Node created, Map<String, Object> properties )
       {
         created.setProperty( "id", properties.get( "id" ) );
+        created.setProperty( "count", new Integer(0) );
       }
     };
     Node fromNode = factory.getOrCreate("id", 0);
+    //increment count if we haven't seen this node before
+    if(!incrementedNodes.contains("0")) {
+      Integer count = (Integer) fromNode.getProperty("count");
+      fromNode.setProperty("count", count+1);
+      incrementedNodes.add("0");
+    }
+
     //Node fromNode = graphDb.getNodeById(0);
     String lastId = null;
     ArrayList<String> ids = box.getIds();

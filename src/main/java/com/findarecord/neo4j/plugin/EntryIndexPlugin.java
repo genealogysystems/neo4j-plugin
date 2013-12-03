@@ -114,7 +114,7 @@ public class EntryIndexPlugin extends ServerPlugin {
     ArrayList<String> result = new ArrayList<>();
 
     //instantiate entry index
-    EntryIndex idx = new EntryIndex(graphDb);
+    EntryDelete idx = new EntryDelete(graphDb);
 
     //delete entry
     idx.deleteEntry(entryId);
@@ -134,7 +134,7 @@ public class EntryIndexPlugin extends ServerPlugin {
 
     for(int i=0;i<entryId.length;i++) {
       //instantiate entry index
-      EntryIndex idx = new EntryIndex(graphDb);
+      EntryDelete idx = new EntryDelete(graphDb);
 
       //delete entry
       idx.deleteEntry(entryId[i]);
