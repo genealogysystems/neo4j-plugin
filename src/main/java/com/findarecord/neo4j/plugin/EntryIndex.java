@@ -22,57 +22,53 @@ public class EntryIndex {
 
   private HashSet<String> incrementedNodes;
 
+  private EntryDelete entryDelete;
+
   public EntryIndex(GraphDatabaseService graphDb) {
     this.graphDb = graphDb;
     this.incrementedNodes = new HashSet<>();
-  }
-
-  public void deleteEntry(String entryId) {
-    try ( Transaction tx = graphDb.beginTx() ) {
-      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ENTRY)
-      {
-        @Override
-        protected void initialize( Node created, Map<String, Object> properties )
-        {
-          created.setProperty( "id", properties.get( "id" ) );
-        }
-      };
-      entryNode = factory.getOrCreate("id", entryId);
-      //remove all old relationships
-      for(Relationship rel: entryNode.getRelationships()) {
-        rel.delete();
-      }
-      entryNode.delete();
-      tx.success();
-    }
+    this.entryDelete = new EntryDelete(graphDb);
   }
 
   public String indexEntry(String entryId, String collectionId, Integer from, Integer to, String[] tags, String geoString) {
     String ret = "";
-    try ( Transaction tx = graphDb.beginTx() ) {
-      UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ENTRY)
-      {
-        @Override
-        protected void initialize( Node created, Map<String, Object> properties )
-        {
-          created.setProperty( "id", properties.get( "id" ) );
-        }
-      };
-      entryNode = factory.getOrCreate("id", entryId);
-      entryNode.setProperty("collection_id", collectionId);
-      entryNode.setProperty("from", from);
-      entryNode.setProperty("to", to);
-      entryNode.setProperty("tags", tags);
-      entryNode.addLabel(DynamicLabel.label("Entry"));
+    boolean wasNotCreated = false;
 
+    //get or create node
+
+    UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ENTRY)
+    {
+      @Override
+      protected void initialize( Node created, Map<String, Object> properties )
+      {
+        created.setProperty( "id", properties.get( "id" ) );
+      }
+    };
+    UniqueFactory.UniqueEntity<Node> uniqueNode = factory.getOrCreateWithOutcome("id", entryId);
+    if(!uniqueNode.wasCreated()) {
+      wasNotCreated = true;
+    }
+    entryNode = uniqueNode.entity();
+    entryNode.setProperty("collection_id", collectionId);
+    entryNode.setProperty("from", from);
+    entryNode.setProperty("to", to);
+    entryNode.setProperty("tags", tags);
+    entryNode.addLabel(DynamicLabel.label("Entry"));
+
+
+    //if node already existed, decrement counters and remove old relationships
+    if(wasNotCreated) {
+      entryDelete.decrementNodes(entryNode);
       //remove all old relationships
       for(Relationship rel: entryNode.getRelationships()) {
         rel.delete();
       }
-      ret = indexGeoJSON(geoString);
 
-      tx.success();
     }
+
+    //index the geojson
+    ret = indexGeoJSON(geoString);
+
 
     return ret;
   }
@@ -91,9 +87,9 @@ public class EntryIndex {
       lats[i] = nGeometry.getCentroid().getY();
       ret += indexGeometry(nGeometry);
     }
-
     entryNode.setProperty("lons",lons);
     entryNode.setProperty("lats",lats);
+
 
     return ret;
   }
@@ -196,6 +192,8 @@ public class EntryIndex {
 
   private String insertBox(Box box) {
 
+
+
     //get root node
     UniqueFactory<Node> factory = new UniqueFactory.UniqueNodeFactory( graphDb, Settings.NEO_ROOT)
     {
@@ -209,6 +207,7 @@ public class EntryIndex {
       }
     };
     Node fromNode = factory.getOrCreate("id", 0);
+
     //increment count if we haven't seen this node before
     if(!incrementedNodes.contains("0")) {
       Integer count = (Integer) fromNode.getProperty("count");
@@ -217,7 +216,6 @@ public class EntryIndex {
       incrementedNodes.add("0");
     }
 
-    //Node fromNode = graphDb.getNodeById(0);
     String lastId = null;
     ArrayList<String> ids = box.getIds();
 
@@ -276,6 +274,7 @@ public class EntryIndex {
     //create relationship to entry Node
     fromNode.createRelationshipTo(entryNode, DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT));
     //UniqueFactory.UniqueEntity<Relationship> colRel = createRelationship(fromNode, entryNode, "id", lastId, Settings.NEO_BOX_INTERSECT_INDEX, Settings.NEO_BOX_INTERSECT);
+
 
     //return ids.toString();
     return "";

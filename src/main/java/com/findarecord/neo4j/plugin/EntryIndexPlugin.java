@@ -1,6 +1,7 @@
 package com.findarecord.neo4j.plugin;
 
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.server.plugins.*;
 import org.neo4j.server.rest.repr.Representation;
 
@@ -62,8 +63,10 @@ public class EntryIndexPlugin extends ServerPlugin {
     EntryIndex idx = new EntryIndex(graphDb);
 
     //index entry
-    result.add(idx.indexEntry(entryId, collectionId, from, to, tags, geojson));
-
+    try ( Transaction tx = graphDb.beginTx() ) {
+      result.add(idx.indexEntry(entryId, collectionId, from, to, tags, geojson));
+      tx.success();
+    }
     //return
     return result;
   }
@@ -89,16 +92,19 @@ public class EntryIndexPlugin extends ServerPlugin {
     //create result string
     ArrayList<String> result = new ArrayList<>();
 
-    for(int i=0;i<entryId.length;i++) {
+    try ( Transaction tx = graphDb.beginTx() ) {
+      for(int i=0;i<entryId.length;i++) {
 
-      //instantiate entry index
-      EntryIndex idx = new EntryIndex(graphDb);
+        //instantiate entry index
+        EntryIndex idx = new EntryIndex(graphDb);
 
-      String[] tagArr = tags[i].split(",");
+        String[] tagArr = tags[i].split(",");
 
-      //index entry
-      result.add(idx.indexEntry(entryId[i], collectionId[i], from[i], to[i], tagArr, geojson[i]));
+        //index entry
+        result.add(idx.indexEntry(entryId[i], collectionId[i], from[i], to[i], tagArr, geojson[i]));
 
+      }
+      tx.success();
     }
     //return
     return result;

@@ -40,16 +40,7 @@ public class EntryDelete {
       entryNode = factory.getOrCreate("id", entryId);
 
       //decrement counters
-      TraversalDescription traversal = graphDb.traversalDescription()
-          .breadthFirst()
-          .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK), Direction.OUTGOING)
-          .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT), Direction.INCOMING)
-          .evaluator(getEvaluator());
-
-      for(Path path : traversal.traverse(entryNode)) {
-        Integer count = (Integer) path.endNode().getProperty("count");
-        path.endNode().setProperty("count", count - 1);
-      }
+      decrementNodes(entryNode);
 
       //remove all old relationships
       for(Relationship rel: entryNode.getRelationships()) {
@@ -57,6 +48,19 @@ public class EntryDelete {
       }
       entryNode.delete();
       tx.success();
+    }
+  }
+
+  public void decrementNodes(Node startNode) {
+    TraversalDescription traversal = graphDb.traversalDescription()
+        .breadthFirst()
+        .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_LINK), Direction.OUTGOING)
+        .relationships(DynamicRelationshipType.withName(Settings.NEO_BOX_INTERSECT), Direction.INCOMING)
+        .evaluator(getEvaluator());
+
+    for(Path path : traversal.traverse(startNode)) {
+      Integer count = (Integer) path.endNode().getProperty("count");
+      path.endNode().setProperty("count", count - 1);
     }
   }
 
